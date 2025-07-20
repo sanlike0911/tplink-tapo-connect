@@ -1,0 +1,27 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:docs.rs)",
+      "Bash(find:*)",
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)",
+      "Bash(npm test)",
+      "Bash(npm run dev:*)",
+      "Bash(npm run lint)",
+      "WebFetch(domain:www.tp-link.com)",
+      "Bash(npm run build:*)",
+      "Bash(rm:*)",
+      "Bash(mv:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(npm run:*)",
+      "Bash(ls:*)",
+      "Bash(export TAPO_USERNAME=\"sanlike0911@gmail.com\")",
+      "Bash(export TAPO_PASSWORD=\"Lacasta@0911\")",
+      "Bash(export PLUG_IP=\"192.168.0.78\")",
+      "Bash(npx jest:*)",
+      "Bash(npm test:*)"
+    ],
+    "deny": []
+  }
+}
