@@ -9,7 +9,7 @@ export class P105Plug extends BaseTapoDevice {
   private deviceModel?: string;
   private requestQueue: Promise<any> = Promise.resolve();
   private lastRequestTime: number = 0;
-  private readonly minRequestInterval: number = 100; // Minimum 100ms between requests
+  private readonly minRequestInterval: number = 500; // Minimum 500ms between requests to avoid session conflicts
 
   constructor(ip: string, credentials: TapoCredentials) {
     super(ip, credentials);
@@ -188,10 +188,22 @@ export class P105Plug extends BaseTapoDevice {
 
       // Check if model supports energy monitoring
       const energyMonitoringModels = ['P110', 'P115', 'KP115', 'KP125'];
-      const hasFeature = energyMonitoringModels.includes(this.deviceModel);
+      const nonEnergyMonitoringModels = ['P105', 'KP105'];
+      
+      // Check if device model is known to support energy monitoring
+      if (energyMonitoringModels.includes(this.deviceModel)) {
+        this.featureCache.set(cacheKey, true);
+        return true;
+      }
+      
+      // Check if device model is known to NOT support energy monitoring
+      if (nonEnergyMonitoringModels.includes(this.deviceModel)) {
+        this.featureCache.set(cacheKey, false);
+        return false;
+      }
       
       // For unknown models, try to make a request to determine support
-      if (!hasFeature && !energyMonitoringModels.includes(this.deviceModel)) {
+      if (!energyMonitoringModels.includes(this.deviceModel) && !nonEnergyMonitoringModels.includes(this.deviceModel)) {
         try {
           const request: TapoApiRequest = {
             method: 'get_energy_usage'
@@ -204,9 +216,10 @@ export class P105Plug extends BaseTapoDevice {
           return false;
         }
       }
-
-      this.featureCache.set(cacheKey, hasFeature);
-      return hasFeature;
+      
+      // If we reach here, model was not in any list - shouldn't happen but handle gracefully
+      this.featureCache.set(cacheKey, false);
+      return false;
     } catch (error) {
       // If we can't determine support, assume it's not supported
       this.featureCache.set(cacheKey, false);
@@ -448,6 +461,35 @@ export class P105Plug extends BaseTapoDevice {
         
         // Check if this is a recoverable error that warrants fallback
         const isRecoverableError = this.isRecoverableError(error as Error);
+        const isSessionError = this.isSessionError(error as Error);
+        
+        // For session errors (like KLAP 1002), try re-authentication first
+        if (isSessionError) {
+          try {
+            console.log('Session error detected, attempting re-authentication...');
+            if (this.useKlap) {
+              console.log('Re-authenticating KLAP session...');
+              this.klapAuth.clearSession();
+              await this.klapAuth.authenticate();
+            } else {
+              console.log('Re-authenticating Secure Passthrough session...');
+              await this.auth.authenticate();
+            }
+            
+            // Retry the original request after re-authentication
+            console.log('Re-authentication successful, retrying original request...');
+            if (this.useKlap) {
+              const result = await this.klapAuth.secureRequest<T>(request);
+              return { error_code: 0, result };
+            } else {
+              const result = await this.auth.secureRequest<T>(request);
+              return { error_code: 0, result };
+            }
+          } catch (reAuthError) {
+            console.log('Re-authentication failed:', reAuthError);
+            // Continue to fallback logic if re-authentication fails
+          }
+        }
         
         if (!isRecoverableError) {
           // For non-recoverable errors (like authentication issues), don't fallback
@@ -477,10 +519,14 @@ export class P105Plug extends BaseTapoDevice {
         try {
           console.log(`Attempting fallback to ${fallback.name}...`);
           
-          if (!fallback.auth.isAuthenticated()) {
-            console.log(`Authenticating with ${fallback.name} for fallback...`);
-            await fallback.auth.authenticate();
+          // Clear session and re-authenticate for fallback
+          console.log(`Clearing session and authenticating with ${fallback.name} for fallback...`);
+          if (fallback.name === 'KLAP') {
+            this.klapAuth.clearSession();
+          } else {
+            this.auth.clearSession();
           }
+          await fallback.auth.authenticate();
           
           const result = await fallback.auth.secureRequest<T>(request);
           console.log(`Fallback to ${fallback.name} succeeded`);

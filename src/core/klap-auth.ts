@@ -178,19 +178,10 @@ export class KlapAuth {
     return !!this.session && this.session.timeout > Date.now();
   }
 
-  public async clearSession(): Promise<void> {
-    if (this.session) {
-      try {
-        // Send logout request to properly close session
-        await this.secureRequest({
-          method: 'logout',
-          params: {}
-        });
-      } catch (error) {
-        // Ignore logout errors as session might already be closed
-      }
-      this.session = undefined;
-    }
+  public clearSession(): void {
+    // Force clear the session without trying to logout
+    // This is safer when dealing with session errors
+    this.session = undefined;
   }
 
   private encrypt(payload: any): Buffer {
