@@ -188,7 +188,7 @@ export class P105Plug extends BaseTapoDevice {
 
       // Check if model supports energy monitoring
       const energyMonitoringModels = ['P110', 'P115', 'KP115', 'KP125'];
-      const nonEnergyMonitoringModels = ['P105', 'KP105'];
+      const nonEnergyMonitoringModels = ['P100', 'P105', 'KP105'];
       
       // Check if device model is known to support energy monitoring
       if (energyMonitoringModels.includes(this.deviceModel)) {
@@ -272,6 +272,15 @@ export class P105Plug extends BaseTapoDevice {
     } else {
       await this.turnOn();
     }
+  }
+
+  // Convenience aliases following Python API pattern
+  public async on(): Promise<void> {
+    await this.turnOn();
+  }
+
+  public async off(): Promise<void> {
+    await this.turnOff();
   }
 
   public async isOn(): Promise<boolean> {
