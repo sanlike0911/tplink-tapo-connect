@@ -102,6 +102,101 @@ await plug.disconnect();
 
 ## Advanced Usage
 
+### Enhanced Wrapper with Retry Support
+
+```typescript
+import { EnhancedTapoWrapper } from 'tplink-tapo-connect';
+
+// Speed-focused (no retry) - for non-critical operations
+const speedWrapper = EnhancedTapoWrapper.forSpeed();
+await speedWrapper.turnOn(email, password, ip);
+
+// Reliability-focused (with retry) - for critical operations
+const reliableWrapper = EnhancedTapoWrapper.forReliability();
+const result = await reliableWrapper.turnOnRobust(email, password, ip);
+
+if (result.success) {
+  console.log(`Success after ${result.metadata.attempts} attempts`);
+} else {
+  console.log('Failed after retries:', result.error?.message);
+}
+```
+
+### Custom Retry Configuration
+
+```typescript
+import { withRetry, TapoRetryHandler } from 'tplink-tapo-connect';
+
+// One-off retry with custom config
+const result = await withRetry(
+  () => wrapper.turnOn(email, password, ip),
+  {
+    maxAttempts: 5,
+    baseDelay: 2000,
+    strategy: 'linear',
+    onRetry: (attempt, error, delay) => {
+      console.log(`Retry ${attempt}: ${error.message} (waiting ${delay}ms)`);
+    }
+  }
+);
+
+// Pre-configured retry handlers
+const controlHandler = TapoRetryHandler.forDeviceControl();
+const result = await controlHandler.execute(
+  () => wrapper.turnOn(email, password, ip),
+  'turnOn'
+);
+```
+
+### Batch Operations with Smart Delays
+
+```typescript
+const wrapper = EnhancedTapoWrapper.forReliability();
+
+const operations = [
+  {
+    operation: () => wrapper.getDeviceInfo(email, password, ip),
+    name: 'Get Status',
+    delayAfter: 1000
+  },
+  {
+    operation: () => wrapper.turnOn(email, password, ip),
+    name: 'Turn On',
+    delayAfter: 3000  // Longer delay after control commands
+  },
+  {
+    operation: () => wrapper.turnOff(email, password, ip),
+    name: 'Turn Off',
+    delayAfter: 0
+  }
+];
+
+const results = await wrapper.executeBatch(operations, {
+  useRetry: true,
+  defaultDelay: 2000
+});
+
+console.log(`${results.filter(r => r.success).length}/${results.length} operations successful`);
+```
+
+### KLAP -1012 Error Prevention
+
+```typescript
+// ❌ Bad - causes KLAP -1012 errors
+await wrapper.turnOn(email, password, ip);
+await wrapper.turnOff(email, password, ip);  // Will likely fail
+
+// ✅ Good - proper delays prevent errors
+await wrapper.turnOn(email, password, ip);
+await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
+await wrapper.turnOff(email, password, ip);
+
+// ✅ Better - automatic retry handling
+const reliableWrapper = EnhancedTapoWrapper.forReliability();
+await reliableWrapper.turnOnRobust(email, password, ip);
+await reliableWrapper.turnOffRobust(email, password, ip); // Handles retries automatically
+```
+
 ### Error Handling with Result Pattern
 
 ```typescript
@@ -142,12 +237,33 @@ const p115 = TapoConnect.createP115Plug(ip, credentials);  // Energy monitoring 
 
 ## API Reference
 
-### TapoConnect Factory Methods
+### Core Device Classes
+
+#### TapoConnect Factory Methods
 
 - `TapoConnect.createP100Plug(ip, credentials)` - Creates P100 plug instance
 - `TapoConnect.createP105Plug(ip, credentials)` - Creates P105 plug instance  
 - `TapoConnect.createP110Plug(ip, credentials)` - Creates P110 plug instance
 - `TapoConnect.createP115Plug(ip, credentials)` - Creates P115 plug instance
+
+### Wrapper Classes
+
+#### Legacy Wrapper (Backward Compatibility)
+- `tplinkTapoConnectWrapper` - Original wrapper with device identifier support
+
+#### Enhanced Wrapper (Recommended)
+- `EnhancedTapoWrapper` - Modern wrapper with optional retry support
+
+### Retry Utilities
+
+#### TapoRetryHandler
+- `TapoRetryHandler.forDeviceControl()` - Pre-configured for ON/OFF operations
+- `TapoRetryHandler.forEnergyMonitoring()` - Pre-configured for energy operations  
+- `TapoRetryHandler.forInfoRetrieval()` - Pre-configured for info operations
+
+#### Utility Functions
+- `withRetry(operation, config)` - One-off retry wrapper
+- `@retryable(config)` - Decorator for automatic retry
 
 ### Common Methods (All Devices)
 
@@ -179,9 +295,12 @@ const p115 = TapoConnect.createP115Plug(ip, credentials);  // Energy monitoring 
 npm run build
 
 # Run examples
-npm run example:p100   # P100 plug example
-npm run example:p105   # P105 plug example  
-npm run example:p110   # P110 plug example
+npm run example:p100    # P100 plug example
+npm run example:p105    # P105 plug example  
+npm run example:p110    # P110 plug example
+npm run example:wrapper # Legacy wrapper example
+npm run example:safe    # Safe operations example
+npm run example:best    # Best practices example (recommended)
 
 # Run tests
 npm test                    # All tests

@@ -9,7 +9,7 @@ export class P105Plug extends BaseTapoDevice {
   private deviceModel?: string;
   private requestQueue: Promise<any> = Promise.resolve();
   private lastRequestTime: number = 0;
-  private readonly minRequestInterval: number = 500; // Minimum 500ms between requests to avoid session conflicts
+  private readonly minRequestInterval: number = 1000; // Minimum interval between requests
 
   constructor(ip: string, credentials: TapoCredentials) {
     super(ip, credentials);
@@ -606,6 +606,7 @@ export class P105Plug extends BaseTapoDevice {
     // Default: treat unknown errors as potentially recoverable
     return true;
   }
+
 
   private isSessionError(error: Error): boolean {
     const errorMessage = error.message.toLowerCase();

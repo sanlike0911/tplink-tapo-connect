@@ -1,8 +1,10 @@
 export * from './types';
+export type { TapoDeviceInfo } from './wrapper/tplink_tapo_connect_wrapper';
 export * from './core';
 export * from './devices';
 
 import { P100Plug, P105Plug, P110Plug, P115Plug } from './devices';
+import { L510Bulb, L520Bulb, L530Bulb } from './devices/bulbs';
 import { TapoCredentials } from './types';
 
 export class TapoConnect {
@@ -37,6 +39,46 @@ export class TapoConnect {
   public static createP115Plug(ip: string, credentials: TapoCredentials): P115Plug {
     return new P115Plug(ip, credentials);
   }
+
+  /**
+   * Create an L510 Smart Bulb instance
+   * L510 is a dimmable white light bulb
+   */
+  public static createL510Bulb(ip: string, credentials: TapoCredentials): L510Bulb {
+    return new L510Bulb(ip, credentials);
+  }
+
+  /**
+   * Create an L520 Smart Bulb instance
+   * L520 is a tunable white light bulb with color temperature control
+   */
+  public static createL520Bulb(ip: string, credentials: TapoCredentials): L520Bulb {
+    return new L520Bulb(ip, credentials);
+  }
+
+  /**
+   * Create an L530 Smart Bulb instance
+   * L530 is a full color bulb with effects support
+   */
+  public static createL530Bulb(ip: string, credentials: TapoCredentials): L530Bulb {
+    return new L530Bulb(ip, credentials);
+  }
 }
 
 export default TapoConnect;
+
+// Wrapper exports (legacy support)
+export * from './wrapper/tplink_tapo_connect_wrapper';
+export type { RetryOptions } from './types/retry-options';
+
+// Enhanced wrapper with optional retry support
+export { EnhancedTapoWrapper, type EnhancedWrapperOptions } from './wrapper/enhanced-wrapper';
+
+// Retry utilities for advanced users
+export { 
+  TapoRetryHandler, 
+  withRetry, 
+  retryable,
+  type RetryConfig,
+  type RetryResult 
+} from './utils/retry-utils';

@@ -1,5 +1,7 @@
 import { TapoConnect, TapoCredentials } from '../index';
 import { TapoDeviceInfo as P105DeviceInfo } from '../types';
+import { RetryOptions, createRetryConfig } from '../types/retry-options';
+import { TapoRetryHandler } from '../utils/retry-utils';
 import find from 'local-devices';
 
 /* Device list that supports energy usage */
@@ -11,7 +13,7 @@ const supportEnergyUsage = [
 ];
 
 // Supported device types
-export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P115' | 'auto';
+export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P115' | 'L510' | 'L520' | 'L530' | 'auto';
 
 // Device factory to create appropriate device instances
 class DeviceFactory {
@@ -35,6 +37,12 @@ class DeviceFactory {
                 return TapoConnect.createP110Plug(ip, credentials);
             case 'P115':
                 return TapoConnect.createP115Plug(ip, credentials);
+            case 'L510':
+                return TapoConnect.createL510Bulb(ip, credentials);
+            case 'L520':
+                return TapoConnect.createL520Bulb(ip, credentials);
+            case 'L530':
+                return TapoConnect.createL530Bulb(ip, credentials);
             default:
                 // Fallback to P105
                 return TapoConnect.createP105Plug(ip, credentials);
@@ -46,9 +54,18 @@ class DeviceFactory {
         if (method === 'getEnergyUsage' || method === 'getCurrentPower') {
             return 'P110';
         }
-        // Brightness/color methods require bulb devices (future implementation)
-        if (method === 'setBrightness' || method === 'setColor') {
-            return 'P105'; // Placeholder - would be L530 in future
+        // Brightness/color methods require bulb devices
+        if (method === 'setBrightness') {
+            return 'L510'; // L510 supports brightness
+        }
+        if (method === 'setColor' || method === 'setColorRGB' || method === 'setNamedColor') {
+            return 'L530'; // L530 supports full color
+        }
+        if (method === 'setColorTemperature') {
+            return 'L520'; // L520/L530 support color temperature
+        }
+        if (method === 'setLightEffect') {
+            return 'L530'; // Only L530 supports effects
         }
         // Default to P105 for basic operations
         return 'P105';
@@ -437,45 +454,69 @@ export class tplinkTapoConnectWrapper {
      * @returns {Promise< tplinkTapoConnectWrapperType.tapoConnectResults >}
      * @memberof tplinkTapoConnectWrapper
      */
-    public async getTapoDeviceInfo(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto'): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
-        let device = null;
-        try {
-            let _tapoConnectResults: tplinkTapoConnectWrapperType.tapoConnectResults = { result: false };
+    public async getTapoDeviceInfo(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
+        // Create retry configuration
+        const retryConfig = createRetryConfig('infoRetrieval', _retryOptions);
+        
+        // Define the operation to potentially retry
+        const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
+            let device = null;
+            try {
+                let _tapoConnectResults: tplinkTapoConnectWrapperType.tapoConnectResults = { result: false };
 
-            // Use new ApiClient with proper session management
-            const client = new ApiClient(_email, _password);
-            device = await client.createDevice(_targetIp, _deviceType, 'getDeviceInfo');
+                // Use new ApiClient with proper session management
+                const client = new ApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'getDeviceInfo');
+                
+                // Connect to device
+                await device.connect();
+
+                // get DeviceInfo
+                const _tapoDeviceInfo: TapoDeviceInfo = await device.getDeviceInfo();
+                if (this.isEmpty(_tapoDeviceInfo)) {
+                    throw new Error("tapo device info not found.");
+                }
+                _tapoConnectResults.tapoDeviceInfo = _tapoDeviceInfo;
+
+                // get EnergyUsage
+                if (supportEnergyUsage.includes(_tapoDeviceInfo.model)) {
+                    const _tapoEnergyUsage = await device.getEnergyUsage();
+                    if (this.isEmpty(_tapoEnergyUsage)) {
+                        throw new Error("tapo device energy not found.");
+                    }
+                    _tapoConnectResults.tapoEnergyUsage = _tapoEnergyUsage;
+                }
+                _tapoConnectResults.result = true;
+                return _tapoConnectResults;
+            } catch (error: any) {
+                throw error;
+            } finally {
+                // Proper session cleanup
+                if (device && typeof device.disconnect === 'function') {
+                    try {
+                        await device.disconnect();
+                    } catch (closeError) {
+                        // Ignore close errors
+                    }
+                }
+            }
+        };
+
+        // Execute with or without retry
+        if (retryConfig) {
+            const retryHandler = new TapoRetryHandler(retryConfig);
+            const result = await retryHandler.execute(operation, 'getTapoDeviceInfo');
             
-            // Connect to device
-            await device.connect();
-
-            // get DeviceInfo
-            const _tapoDeviceInfo: TapoDeviceInfo = await device.getDeviceInfo();
-            if (this.isEmpty(_tapoDeviceInfo)) {
-                throw new Error("tapo device info not found.");
+            if (result.success) {
+                return result.data!;
+            } else {
+                return { result: false, errorInf: result.error! };
             }
-            _tapoConnectResults.tapoDeviceInfo = _tapoDeviceInfo;
-
-            // get EnergyUsage
-            if (supportEnergyUsage.includes(_tapoDeviceInfo.model)) {
-                const _tapoEnergyUsage = await device.getEnergyUsage();
-                if (this.isEmpty(_tapoEnergyUsage)) {
-                    throw new Error("tapo device energy not found.");
-                }
-                _tapoConnectResults.tapoEnergyUsage = _tapoEnergyUsage;
-            }
-            _tapoConnectResults.result = true;
-            return _tapoConnectResults;
-        } catch (error: any) {
-            return { result: false, errorInf: error };
-        } finally {
-            // Proper session cleanup
-            if (device && typeof device.disconnect === 'function') {
-                try {
-                    await device.disconnect();
-                } catch (closeError) {
-                    // Ignore close errors
-                }
+        } else {
+            try {
+                return await operation();
+            } catch (error: any) {
+                return { result: false, errorInf: error };
             }
         }
     }
@@ -489,30 +530,54 @@ export class tplinkTapoConnectWrapper {
      * @return {*}  {Promise<tplinkTapoConnectWrapperType.tapoConnectResults>}
      * @memberof tplinkTapoConnectWrapper
      */
-    public async getTapoEnergyUsage(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'P110'): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
-        let device = null;
-        try {
-            // Use specified device type for energy monitoring functionality
-            device = DeviceFactory.createDevice(_deviceType, _targetIp, { username: _email, password: _password }, 'getEnergyUsage');
-            
-            // Connect to device
-            await device.connect();
+    public async getTapoEnergyUsage(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'P110', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
+        // Create retry configuration
+        const retryConfig = createRetryConfig('energyMonitoring', _retryOptions);
+        
+        // Define the operation to potentially retry
+        const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
+            let device = null;
+            try {
+                // Use specified device type for energy monitoring functionality
+                device = DeviceFactory.createDevice(_deviceType, _targetIp, { username: _email, password: _password }, 'getEnergyUsage');
+                
+                // Connect to device
+                await device.connect();
 
-            // get EnergyUsage
-            const _tapoEnergyUsage = await device.getEnergyUsage();
-            if (this.isEmpty(_tapoEnergyUsage)) {
-                throw new Error("tapo device energy not found.");
-            }
-            return { result: true, tapoDeviceInfo: _tapoEnergyUsage };
-        } catch (error: any) {
-            return { result: false, errorInf: error };
-        } finally {
-            if (device && typeof device.disconnect === 'function') {
-                try {
-                    await device.disconnect();
-                } catch (closeError) {
-                    // Ignore close errors
+                // get EnergyUsage
+                const _tapoEnergyUsage = await device.getEnergyUsage();
+                if (this.isEmpty(_tapoEnergyUsage)) {
+                    throw new Error("tapo device energy not found.");
                 }
+                return { result: true, tapoDeviceInfo: _tapoEnergyUsage };
+            } catch (error: any) {
+                throw error;
+            } finally {
+                if (device && typeof device.disconnect === 'function') {
+                    try {
+                        await device.disconnect();
+                    } catch (closeError) {
+                        // Ignore close errors
+                    }
+                }
+            }
+        };
+
+        // Execute with or without retry
+        if (retryConfig) {
+            const retryHandler = new TapoRetryHandler(retryConfig);
+            const result = await retryHandler.execute(operation, 'getTapoEnergyUsage');
+            
+            if (result.success) {
+                return result.data!;
+            } else {
+                return { result: false, errorInf: result.error! };
+            }
+        } else {
+            try {
+                return await operation();
+            } catch (error: any) {
+                return { result: false, errorInf: error };
             }
         }
     }
@@ -524,9 +589,12 @@ export class tplinkTapoConnectWrapper {
      * @returns {Promise< object >}
      * @memberof tplinkTapoConnectWrapper
      */
-    public async setTapoTurnOn(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto'): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
-        // Retry up to 3 times for session issues
-        for (let attempt = 1; attempt <= 3; attempt++) {
+    public async setTapoTurnOn(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
+        // Create retry configuration
+        const retryConfig = createRetryConfig('deviceControl', _retryOptions);
+        
+        // Define the operation to potentially retry
+        const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
             try {
                 // Use new ApiClient with proper session management
@@ -538,13 +606,7 @@ export class tplinkTapoConnectWrapper {
                 await device.on();
                 return { result: true };
             } catch (error: any) {
-                if (attempt < 3 && error.message && error.message.includes('Invalid terminal UUID')) {
-                    console.log(`Retry attempt ${attempt + 1}/3 for UUID conflict...`);
-                    // Wait longer for session conflicts
-                    await new Promise(resolve => setTimeout(resolve, 5000 * attempt));
-                    continue;
-                }
-                return { result: false, errorInf: error };
+                throw error;
             } finally {
                 // Proper session cleanup
                 if (device && typeof device.disconnect === 'function') {
@@ -555,8 +617,25 @@ export class tplinkTapoConnectWrapper {
                     }
                 }
             }
+        };
+
+        // Execute with or without retry
+        if (retryConfig) {
+            const retryHandler = new TapoRetryHandler(retryConfig);
+            const result = await retryHandler.execute(operation, 'setTapoTurnOn');
+            
+            if (result.success) {
+                return result.data!;
+            } else {
+                return { result: false, errorInf: result.error! };
+            }
+        } else {
+            try {
+                return await operation();
+            } catch (error: any) {
+                return { result: false, errorInf: error };
+            }
         }
-        return { result: false, errorInf: new Error('Max retries exceeded') };
     }
 
     /**
@@ -568,9 +647,12 @@ export class tplinkTapoConnectWrapper {
      * @returns {Promise< tplinkTapoConnectWrapperType.tapoConnectResults >}
      * @memberof tplinkTapoConnectWrapper
      */
-    public async setTapoTurnOff(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto'): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
-        // Retry up to 3 times for session issues
-        for (let attempt = 1; attempt <= 3; attempt++) {
+    public async setTapoTurnOff(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
+        // Create retry configuration
+        const retryConfig = createRetryConfig('deviceControl', _retryOptions);
+        
+        // Define the operation to potentially retry
+        const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
             try {
                 // Use new ApiClient with proper session management
@@ -582,13 +664,7 @@ export class tplinkTapoConnectWrapper {
                 await device.off();
                 return { result: true };
             } catch (error: any) {
-                if (attempt < 3 && error.message && error.message.includes('Invalid terminal UUID')) {
-                    console.log(`Retry attempt ${attempt + 1}/3 for UUID conflict...`);
-                    // Wait longer for session conflicts
-                    await new Promise(resolve => setTimeout(resolve, 5000 * attempt));
-                    continue;
-                }
-                return { result: false, errorInf: error };
+                throw error;
             } finally {
                 // Proper session cleanup
                 if (device && typeof device.disconnect === 'function') {
@@ -599,8 +675,25 @@ export class tplinkTapoConnectWrapper {
                     }
                 }
             }
+        };
+
+        // Execute with or without retry
+        if (retryConfig) {
+            const retryHandler = new TapoRetryHandler(retryConfig);
+            const result = await retryHandler.execute(operation, 'setTapoTurnOff');
+            
+            if (result.success) {
+                return result.data!;
+            } else {
+                return { result: false, errorInf: result.error! };
+            }
+        } else {
+            try {
+                return await operation();
+            } catch (error: any) {
+                return { result: false, errorInf: error };
+            }
         }
-        return { result: false, errorInf: new Error('Max retries exceeded') };
     }
 
     /**
@@ -610,71 +703,125 @@ export class tplinkTapoConnectWrapper {
      * @param {string} _password
      * @param {string} _targetIp
      * @param {number} _brightness
+     * @param {TapoDeviceType} _deviceType - Device type identifier (auto-detects bulb type)
+     * @param {RetryOptions} _retryOptions - Optional retry configuration
      * @returns {Promise< tplinkTapoConnectWrapperType.tapoConnectResults >}
      * @memberof tplinkTapoConnectWrapper
      */
-    public async setTapoBrightness(_email: string, _password: string, _targetIp: string, _brightness: number): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
-        let device = null;
-        try {
-            if (_brightness < 0 || _brightness > 100) {
-                throw "brightness out of range";
-            }
-            const client = new ApiClient(_email, _password);
-            device = await client.l530(_targetIp);
-            
-            // Connect to device
-            await device.connect();
-
-            // Note: setBrightness is for bulb devices (L530), not plugs
-            // This would require L530 bulb implementation
-            throw new Error("Brightness control not available for plug devices");
-        } catch (error: any) {
-            return { result: false, errorInf: error };
-        } finally {
-            if (device && typeof device.disconnect === 'function') {
-                try {
-                    await device.disconnect();
-                } catch (closeError) {
-                    // Ignore close errors
+    public async setTapoBrightness(_email: string, _password: string, _targetIp: string, _brightness: number, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
+        // Create retry configuration
+        const retryConfig = createRetryConfig('deviceControl', _retryOptions);
+        
+        // Define the operation to potentially retry
+        const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
+            let device = null;
+            try {
+                if (_brightness < 1 || _brightness > 100) {
+                    throw new Error("Brightness must be between 1-100");
                 }
+                
+                const client = new ApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'setBrightness');
+                
+                // Connect to device
+                await device.connect();
+
+                // Set brightness
+                await device.setBrightness(_brightness);
+                return { result: true };
+            } catch (error: any) {
+                throw error;
+            } finally {
+                if (device && typeof device.disconnect === 'function') {
+                    try {
+                        await device.disconnect();
+                    } catch (closeError) {
+                        // Ignore close errors
+                    }
+                }
+            }
+        };
+
+        // Execute with or without retry
+        if (retryConfig) {
+            const retryHandler = new TapoRetryHandler(retryConfig);
+            const result = await retryHandler.execute(operation, 'setTapoBrightness');
+            
+            if (result.success) {
+                return result.data!;
+            } else {
+                return { result: false, errorInf: result.error! };
+            }
+        } else {
+            try {
+                return await operation();
+            } catch (error: any) {
+                return { result: false, errorInf: error };
             }
         }
     }
 
     /**
-     * 
+     * Set color using named color
      *
      * @param {string} _email
      * @param {string} _password
      * @param {string} _targetIp
-     * @param {string} _colour
+     * @param {string} _colour - Named color (red, green, blue, etc.)
+     * @param {TapoDeviceType} _deviceType - Device type identifier (auto-detects to L530)
+     * @param {RetryOptions} _retryOptions - Optional retry configuration
      * @returns {Promise< tplinkTapoConnectWrapperType.tapoConnectResults >}
      * @memberof tplinkTapoConnectWrapper
      */
-    public async setTapoColour(_email: string, _password: string, _targetIp: string, _colour: string): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
-        let device = null;
-        try {
-            if (_colour === "") {
-                throw "Incorrect colour value";
-            }
-            const client = new ApiClient(_email, _password);
-            device = await client.l530(_targetIp);
-            
-            // Connect to device
-            await device.connect();
-
-            // Note: setColour is for bulb devices (L530), not plugs
-            // This would require L530 bulb implementation
-            throw new Error("Color control not available for plug devices");
-        } catch (error: any) {
-            return { result: false, errorInf: error };
-        } finally {
-            if (device && typeof device.disconnect === 'function') {
-                try {
-                    await device.disconnect();
-                } catch (closeError) {
-                    // Ignore close errors
+    public async setTapoColour(_email: string, _password: string, _targetIp: string, _colour: string, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
+        // Create retry configuration
+        const retryConfig = createRetryConfig('deviceControl', _retryOptions);
+        
+        // Define the operation to potentially retry
+        const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
+            let device = null;
+            try {
+                if (_colour === "") {
+                    throw new Error("Color value cannot be empty");
                 }
+                
+                const client = new ApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'setColor');
+                
+                // Connect to device
+                await device.connect();
+
+                // Set named color
+                await device.setNamedColor(_colour);
+                return { result: true };
+            } catch (error: any) {
+                throw error;
+            } finally {
+                if (device && typeof device.disconnect === 'function') {
+                    try {
+                        await device.disconnect();
+                    } catch (closeError) {
+                        // Ignore close errors
+                    }
+                }
+            }
+        };
+
+        // Execute with or without retry
+        if (retryConfig) {
+            const retryHandler = new TapoRetryHandler(retryConfig);
+            const result = await retryHandler.execute(operation, 'setTapoColour');
+            
+            if (result.success) {
+                return result.data!;
+            } else {
+                return { result: false, errorInf: result.error! };
+            }
+        } else {
+            try {
+                return await operation();
+            } catch (error: any) {
+                return { result: false, errorInf: error };
             }
         }
     }

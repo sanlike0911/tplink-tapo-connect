@@ -41,6 +41,7 @@ export interface P105UsageInfo {
   todayEnergy: number;
   monthEnergy: number;
   currentPower: number;
+  onTime?: number;
 }
 
 export interface HubDeviceInfo extends TapoDeviceInfo {
