@@ -1,5 +1,5 @@
 export * from './types';
-export type { TapoDeviceInfo } from './wrapper/tplink_tapo_connect_wrapper';
+export type { TapoDeviceInfo } from './wrapper/tplink-tapo-connect-wrapper';
 export * from './core';
 export * from './devices';
 
@@ -68,17 +68,16 @@ export class TapoConnect {
 export default TapoConnect;
 
 // Wrapper exports (legacy support)
-export * from './wrapper/tplink_tapo_connect_wrapper';
+export * from './wrapper/tplink-tapo-connect-wrapper';
 export type { RetryOptions } from './types/retry-options';
 
-// Enhanced wrapper with optional retry support
-export { EnhancedTapoWrapper, type EnhancedWrapperOptions } from './wrapper/enhanced-wrapper';
+// Enhanced wrapper functionality is now integrated into the main wrapper
 
 // Retry utilities for advanced users
-export { 
-  TapoRetryHandler, 
-  withRetry, 
+export {
+  TapoRetryHandler,
+  withRetry,
   retryable,
   type RetryConfig,
-  type RetryResult 
+  type RetryResult
 } from './utils/retry-utils';

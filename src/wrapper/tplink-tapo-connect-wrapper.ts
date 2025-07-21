@@ -825,4 +825,72 @@ export class tplinkTapoConnectWrapper {
             }
         }
     }
+
+    /**
+     * Batch operations with smart delays to prevent KLAP -1012 errors
+     * Migrated from Enhanced Wrapper for consistency
+     */
+    public async executeBatch(
+        operations: Array<{
+            operation: () => Promise<tplinkTapoConnectWrapperType.tapoConnectResults>;
+            name: string;
+            delayAfter?: number;
+        }>,
+        options: {
+            defaultDelay?: number;
+            retryOptions?: RetryOptions;
+        } = {}
+    ): Promise<Array<{ name: string; success: boolean; data?: any; error?: Error; duration?: number }>> {
+        const results: Array<{ name: string; success: boolean; data?: any; error?: Error; duration?: number }> = [];
+        const defaultDelay = options.defaultDelay || 2000;
+
+        for (let i = 0; i < operations.length; i++) {
+            const operationItem = operations[i];
+            if (!operationItem) continue;
+            
+            const { operation, name, delayAfter } = operationItem;
+            const startTime = Date.now();
+            
+            try {
+                console.log(`\n--- Executing batch operation: ${name} ---`);
+                
+                const data = await operation();
+                const duration = Date.now() - startTime;
+                
+                const result: { name: string; success: boolean; data?: any; error?: Error; duration?: number } = { 
+                    name, 
+                    success: data.result,
+                    duration 
+                };
+                
+                if (data.result) {
+                    result.data = data;
+                } else if (data.errorInf) {
+                    result.error = data.errorInf;
+                }
+                
+                results.push(result);
+
+                // Add delay after operation (except for the last one)
+                if (i < operations.length - 1) {
+                    const delay = delayAfter !== undefined ? delayAfter : defaultDelay;
+                    if (delay > 0) {
+                        console.log(`⏳ Waiting ${delay}ms before next operation...`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+
+            } catch (error) {
+                const duration = Date.now() - startTime;
+                results.push({ 
+                    name, 
+                    success: false, 
+                    error: error as Error,
+                    duration 
+                });
+            }
+        }
+
+        return results;
+    }
 }

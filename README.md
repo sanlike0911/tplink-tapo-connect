@@ -102,86 +102,120 @@ await plug.disconnect();
 
 ## Advanced Usage
 
-### Enhanced Wrapper with Retry Support
+### Wrapper with Integrated Retry Support
 
 ```typescript
-import { EnhancedTapoWrapper } from 'tplink-tapo-connect';
+import { tplinkTapoConnectWrapper, RetryOptions } from 'tplink-tapo-connect';
 
-// Speed-focused (no retry) - for non-critical operations
-const speedWrapper = EnhancedTapoWrapper.forSpeed();
-await speedWrapper.turnOn(email, password, ip);
+const wrapper = new tplinkTapoConnectWrapper();
 
-// Reliability-focused (with retry) - for critical operations
-const reliableWrapper = EnhancedTapoWrapper.forReliability();
-const result = await reliableWrapper.turnOnRobust(email, password, ip);
+// Basic operation without retry (fast but less reliable)
+await wrapper.turnOn(email, password, ip);
 
-if (result.success) {
-  console.log(`Success after ${result.metadata.attempts} attempts`);
-} else {
-  console.log('Failed after retries:', result.error?.message);
-}
+// Operation with retry for reliability
+const retryOptions: RetryOptions = {
+  maxAttempts: 3,
+  baseDelay: 1000,
+  strategy: 'exponential'
+};
+
+const result = await wrapper.turnOn(email, password, ip, retryOptions);
+console.log('Operation completed successfully');
+
+// Batch operations with retry
+const batchResults = await wrapper.executeBatch([
+  {
+    operation: () => wrapper.getDeviceInfo(email, password, ip, retryOptions),
+    name: 'Get Device Info'
+  },
+  {
+    operation: () => wrapper.turnOn(email, password, ip, retryOptions),
+    name: 'Turn On Device'
+  }
+]);
 ```
 
 ### Custom Retry Configuration
 
 ```typescript
-import { withRetry, TapoRetryHandler } from 'tplink-tapo-connect';
+import { tplinkTapoConnectWrapper, RetryOptions } from 'tplink-tapo-connect';
 
-// One-off retry with custom config
-const result = await withRetry(
-  () => wrapper.turnOn(email, password, ip),
-  {
-    maxAttempts: 5,
-    baseDelay: 2000,
-    strategy: 'linear',
-    onRetry: (attempt, error, delay) => {
-      console.log(`Retry ${attempt}: ${error.message} (waiting ${delay}ms)`);
-    }
+const wrapper = new tplinkTapoConnectWrapper();
+
+// Custom retry configuration for different scenarios
+const aggressiveRetry: RetryOptions = {
+  maxAttempts: 5,
+  baseDelay: 2000,
+  strategy: 'linear',
+  onRetry: (attempt, error, delay) => {
+    console.log(`Retry ${attempt}: ${error.message} (waiting ${delay}ms)`);
   }
-);
+};
 
-// Pre-configured retry handlers
-const controlHandler = TapoRetryHandler.forDeviceControl();
-const result = await controlHandler.execute(
-  () => wrapper.turnOn(email, password, ip),
-  'turnOn'
-);
+// Pre-configured retry options for common scenarios
+const deviceControlRetry: RetryOptions = {
+  maxAttempts: 3,
+  baseDelay: 1000,
+  strategy: 'exponential'
+};
+
+const energyMonitoringRetry: RetryOptions = {
+  maxAttempts: 2,
+  baseDelay: 500,
+  strategy: 'linear'
+};
+
+// Apply retry options to operations
+await wrapper.turnOn(email, password, ip, deviceControlRetry);
+const energyData = await wrapper.getEnergyUsage(email, password, ip, energyMonitoringRetry);
 ```
 
 ### Batch Operations with Smart Delays
 
 ```typescript
-const wrapper = EnhancedTapoWrapper.forReliability();
+import { tplinkTapoConnectWrapper, BatchOperation, RetryOptions } from 'tplink-tapo-connect';
 
-const operations = [
+const wrapper = new tplinkTapoConnectWrapper();
+const retryOptions: RetryOptions = {
+  maxAttempts: 3,
+  baseDelay: 1000,
+  strategy: 'exponential'
+};
+
+const operations: BatchOperation[] = [
   {
-    operation: () => wrapper.getDeviceInfo(email, password, ip),
+    operation: () => wrapper.getDeviceInfo(email, password, ip, retryOptions),
     name: 'Get Status',
     delayAfter: 1000
   },
   {
-    operation: () => wrapper.turnOn(email, password, ip),
+    operation: () => wrapper.turnOn(email, password, ip, retryOptions),
     name: 'Turn On',
     delayAfter: 3000  // Longer delay after control commands
   },
   {
-    operation: () => wrapper.turnOff(email, password, ip),
+    operation: () => wrapper.turnOff(email, password, ip, retryOptions),
     name: 'Turn Off',
     delayAfter: 0
   }
 ];
 
-const results = await wrapper.executeBatch(operations, {
-  useRetry: true,
-  defaultDelay: 2000
-});
-
+const results = await wrapper.executeBatch(operations);
 console.log(`${results.filter(r => r.success).length}/${results.length} operations successful`);
 ```
 
 ### KLAP -1012 Error Prevention
 
 ```typescript
+import { tplinkTapoConnectWrapper, RetryOptions } from 'tplink-tapo-connect';
+
+const wrapper = new tplinkTapoConnectWrapper();
+const retryOptions: RetryOptions = {
+  maxAttempts: 3,
+  baseDelay: 1000,
+  strategy: 'exponential'
+};
+
 // ❌ Bad - causes KLAP -1012 errors
 await wrapper.turnOn(email, password, ip);
 await wrapper.turnOff(email, password, ip);  // Will likely fail
@@ -191,10 +225,23 @@ await wrapper.turnOn(email, password, ip);
 await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
 await wrapper.turnOff(email, password, ip);
 
-// ✅ Better - automatic retry handling
-const reliableWrapper = EnhancedTapoWrapper.forReliability();
-await reliableWrapper.turnOnRobust(email, password, ip);
-await reliableWrapper.turnOffRobust(email, password, ip); // Handles retries automatically
+// ✅ Better - automatic retry handling with integrated retry support
+await wrapper.turnOn(email, password, ip, retryOptions);
+await wrapper.turnOff(email, password, ip, retryOptions); // Handles retries automatically
+
+// ✅ Best - use batch operations for multiple commands
+const operations = [
+  {
+    operation: () => wrapper.turnOn(email, password, ip, retryOptions),
+    name: 'Turn On',
+    delayAfter: 3000
+  },
+  {
+    operation: () => wrapper.turnOff(email, password, ip, retryOptions),
+    name: 'Turn Off'
+  }
+];
+await wrapper.executeBatch(operations);
 ```
 
 ### Error Handling with Result Pattern
@@ -248,22 +295,21 @@ const p115 = TapoConnect.createP115Plug(ip, credentials);  // Energy monitoring 
 
 ### Wrapper Classes
 
-#### Legacy Wrapper (Backward Compatibility)
-- `tplinkTapoConnectWrapper` - Original wrapper with device identifier support
+#### Main Wrapper (Recommended)
+- `tplinkTapoConnectWrapper` - Main wrapper with integrated retry support, batch operations, and device identifier support
 
-#### Enhanced Wrapper (Recommended)
-- `EnhancedTapoWrapper` - Modern wrapper with optional retry support
+### Retry and Batch Operations
 
-### Retry Utilities
+#### RetryOptions Interface
+- `maxAttempts` - Maximum number of retry attempts
+- `baseDelay` - Base delay between retries (ms)
+- `strategy` - Retry strategy ('linear' | 'exponential')
+- `onRetry` - Optional callback for retry events
 
-#### TapoRetryHandler
-- `TapoRetryHandler.forDeviceControl()` - Pre-configured for ON/OFF operations
-- `TapoRetryHandler.forEnergyMonitoring()` - Pre-configured for energy operations  
-- `TapoRetryHandler.forInfoRetrieval()` - Pre-configured for info operations
-
-#### Utility Functions
-- `withRetry(operation, config)` - One-off retry wrapper
-- `@retryable(config)` - Decorator for automatic retry
+#### Batch Operations
+- `executeBatch(operations)` - Execute multiple operations with smart delays
+- `BatchOperation` interface for defining batch operations
+- Automatic error handling and result aggregation
 
 ### Common Methods (All Devices)
 

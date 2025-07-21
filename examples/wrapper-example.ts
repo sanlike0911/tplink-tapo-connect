@@ -1,4 +1,4 @@
-import { tplinkTapoConnectWrapper, TapoDeviceType } from '../src/wrapper/tplink_tapo_connect_wrapper';
+import { tplinkTapoConnectWrapper, TapoDeviceType } from '../src/wrapper/tplink-tapo-connect-wrapper';
 import { config } from 'dotenv';
 
 config();
