@@ -22,7 +22,8 @@
       "Bash(npx jest:*)",
       "Bash(npm test:*)",
       "Bash(touch:*)",
-      "WebFetch(domain:lib.rs)"
+      "WebFetch(domain:lib.rs)",
+      "mcp__ide__getDiagnostics"
     ],
     "deny": []
   }

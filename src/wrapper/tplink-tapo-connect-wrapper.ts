@@ -19,7 +19,7 @@ export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P115' | 'L510' | 'L520'
 class DeviceFactory {
     static createDevice(deviceType: TapoDeviceType, ip: string, credentials: TapoCredentials, methodHint?: string): any {
         let actualDeviceType = deviceType;
-        
+
         // Auto-select device type based on method hint
         if (deviceType === 'auto' && methodHint) {
             actualDeviceType = this.getDeviceTypeForMethod(methodHint);
@@ -32,11 +32,11 @@ class DeviceFactory {
             case 'P100':
                 return TapoConnect.createP100Plug(ip, credentials);
             case 'P105':
-                return TapoConnect.createP105Plug(ip, credentials);
+                return TapoConnect.createP100Plug(ip, credentials);
             case 'P110':
                 return TapoConnect.createP110Plug(ip, credentials);
             case 'P115':
-                return TapoConnect.createP115Plug(ip, credentials);
+                return TapoConnect.createP110Plug(ip, credentials);
             case 'L510':
                 return TapoConnect.createL510Bulb(ip, credentials);
             case 'L520':
@@ -110,7 +110,7 @@ class ApiClient {
     async createDevice(ip: string, deviceType: TapoDeviceType, methodHint?: string, autoConnect: boolean = true): Promise<any> {
         // Use IP and deviceType as primary cache key, ignore methodHint for session reuse
         const primaryCacheKey = `${ip}-${deviceType}`;
-        
+
         // Check if we already have a connected device for this IP and type
         if (this.deviceCache.has(primaryCacheKey)) {
             const cachedDevice = this.deviceCache.get(primaryCacheKey);
@@ -130,9 +130,9 @@ class ApiClient {
             username: this.username,
             password: this.password
         };
-        
+
         const device = DeviceFactory.createDevice(deviceType, ip, credentials, methodHint);
-        
+
         // Auto-connect if requested
         if (autoConnect) {
             try {
@@ -143,7 +143,7 @@ class ApiClient {
                 throw error;
             }
         }
-        
+
         this.deviceCache.set(primaryCacheKey, device);
         return device;
     }
@@ -295,12 +295,12 @@ export class tplinkTapoConnectWrapper {
      */
     private getApiClient(email: string, password: string): ApiClient {
         const clientKey = `${email}:${password}`;
-        
+
         if (!this.clientCache.has(clientKey)) {
             const client = new ApiClient(email, password);
             this.clientCache.set(clientKey, client);
         }
-        
+
         return this.clientCache.get(clientKey)!;
     }
 
@@ -531,7 +531,7 @@ export class tplinkTapoConnectWrapper {
     public async getTapoDeviceInfo(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
         // Create retry configuration
         const retryConfig = createRetryConfig('infoRetrieval', _retryOptions);
-        
+
         // Define the operation to potentially retry
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
@@ -541,7 +541,7 @@ export class tplinkTapoConnectWrapper {
                 // Use cached ApiClient with proper session management
                 const client = this.getApiClient(_email, _password);
                 device = await client.createDevice(_targetIp, _deviceType, 'getDeviceInfo', true); // autoConnect=true
-                
+
                 // Device is already connected
 
                 // get DeviceInfo
@@ -573,7 +573,7 @@ export class tplinkTapoConnectWrapper {
         if (retryConfig) {
             const retryHandler = new TapoRetryHandler(retryConfig);
             const result = await retryHandler.execute(operation, 'getTapoDeviceInfo');
-            
+
             if (result.success) {
                 return result.data!;
             } else {
@@ -600,7 +600,7 @@ export class tplinkTapoConnectWrapper {
     public async getTapoEnergyUsage(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'P110', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
         // Create retry configuration
         const retryConfig = createRetryConfig('energyMonitoring', _retryOptions);
-        
+
         // Define the operation to potentially retry
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
@@ -608,7 +608,7 @@ export class tplinkTapoConnectWrapper {
                 // Use cached ApiClient for energy monitoring functionality
                 const client = this.getApiClient(_email, _password);
                 device = await client.createDevice(_targetIp, _deviceType, 'getEnergyUsage', true); // autoConnect=true
-                
+
                 // Device is already connected via createDevice
 
                 // get EnergyUsage
@@ -634,7 +634,7 @@ export class tplinkTapoConnectWrapper {
         if (retryConfig) {
             const retryHandler = new TapoRetryHandler(retryConfig);
             const result = await retryHandler.execute(operation, 'getTapoEnergyUsage');
-            
+
             if (result.success) {
                 return result.data!;
             } else {
@@ -659,7 +659,7 @@ export class tplinkTapoConnectWrapper {
     public async setTapoTurnOn(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
         // Create retry configuration
         const retryConfig = createRetryConfig('deviceControl', _retryOptions);
-        
+
         // Define the operation to potentially retry
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
@@ -667,7 +667,7 @@ export class tplinkTapoConnectWrapper {
                 // Use cached ApiClient with proper session management
                 const client = this.getApiClient(_email, _password);
                 device = await client.createDevice(_targetIp, _deviceType, 'turnOn', true); // autoConnect=true
-                
+
                 // Device is already connected, just execute command
                 await device.on();
                 return { result: true };
@@ -683,7 +683,7 @@ export class tplinkTapoConnectWrapper {
         if (retryConfig) {
             const retryHandler = new TapoRetryHandler(retryConfig);
             const result = await retryHandler.execute(operation, 'setTapoTurnOn');
-            
+
             if (result.success) {
                 return result.data!;
             } else {
@@ -710,7 +710,7 @@ export class tplinkTapoConnectWrapper {
     public async setTapoTurnOff(_email: string, _password: string, _targetIp: string, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
         // Create retry configuration
         const retryConfig = createRetryConfig('deviceControl', _retryOptions);
-        
+
         // Define the operation to potentially retry
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
@@ -718,7 +718,7 @@ export class tplinkTapoConnectWrapper {
                 // Use cached ApiClient with proper session management
                 const client = this.getApiClient(_email, _password);
                 device = await client.createDevice(_targetIp, _deviceType, 'turnOff', true); // autoConnect=true
-                
+
                 // Device is already connected, just execute command
                 await device.off();
                 return { result: true };
@@ -734,7 +734,7 @@ export class tplinkTapoConnectWrapper {
         if (retryConfig) {
             const retryHandler = new TapoRetryHandler(retryConfig);
             const result = await retryHandler.execute(operation, 'setTapoTurnOff');
-            
+
             if (result.success) {
                 return result.data!;
             } else {
@@ -764,7 +764,7 @@ export class tplinkTapoConnectWrapper {
     public async setTapoBrightness(_email: string, _password: string, _targetIp: string, _brightness: number, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
         // Create retry configuration
         const retryConfig = createRetryConfig('deviceControl', _retryOptions);
-        
+
         // Define the operation to potentially retry
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
@@ -772,10 +772,10 @@ export class tplinkTapoConnectWrapper {
                 if (_brightness < 1 || _brightness > 100) {
                     throw new Error("Brightness must be between 1-100");
                 }
-                
+
                 const client = this.getApiClient(_email, _password);
                 device = await client.createDevice(_targetIp, _deviceType, 'setBrightness', true); // autoConnect=true
-                
+
                 // Device is already connected via createDevice
 
                 // Set brightness
@@ -798,7 +798,7 @@ export class tplinkTapoConnectWrapper {
         if (retryConfig) {
             const retryHandler = new TapoRetryHandler(retryConfig);
             const result = await retryHandler.execute(operation, 'setTapoBrightness');
-            
+
             if (result.success) {
                 return result.data!;
             } else {
@@ -828,7 +828,7 @@ export class tplinkTapoConnectWrapper {
     public async setTapoColour(_email: string, _password: string, _targetIp: string, _colour: string, _deviceType: TapoDeviceType = 'auto', _retryOptions?: RetryOptions): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
         // Create retry configuration
         const retryConfig = createRetryConfig('deviceControl', _retryOptions);
-        
+
         // Define the operation to potentially retry
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
@@ -836,10 +836,10 @@ export class tplinkTapoConnectWrapper {
                 if (_colour === "") {
                     throw new Error("Color value cannot be empty");
                 }
-                
+
                 const client = this.getApiClient(_email, _password);
                 device = await client.createDevice(_targetIp, _deviceType, 'setColor', true); // autoConnect=true
-                
+
                 // Device is already connected via createDevice
 
                 // Set named color
@@ -862,7 +862,7 @@ export class tplinkTapoConnectWrapper {
         if (retryConfig) {
             const retryHandler = new TapoRetryHandler(retryConfig);
             const result = await retryHandler.execute(operation, 'setTapoColour');
-            
+
             if (result.success) {
                 return result.data!;
             } else {
@@ -898,28 +898,28 @@ export class tplinkTapoConnectWrapper {
         for (let i = 0; i < operations.length; i++) {
             const operationItem = operations[i];
             if (!operationItem) continue;
-            
+
             const { operation, name, delayAfter } = operationItem;
             const startTime = Date.now();
-            
+
             try {
                 console.log(`\n--- Executing batch operation: ${name} ---`);
-                
+
                 const data = await operation();
                 const duration = Date.now() - startTime;
-                
-                const result: { name: string; success: boolean; data?: any; error?: Error; duration?: number } = { 
-                    name, 
+
+                const result: { name: string; success: boolean; data?: any; error?: Error; duration?: number } = {
+                    name,
                     success: data.result,
-                    duration 
+                    duration
                 };
-                
+
                 if (data.result) {
                     result.data = data;
                 } else if (data.errorInf) {
                     result.error = data.errorInf;
                 }
-                
+
                 results.push(result);
 
                 // Add delay after operation (except for the last one)
@@ -933,11 +933,11 @@ export class tplinkTapoConnectWrapper {
 
             } catch (error) {
                 const duration = Date.now() - startTime;
-                results.push({ 
-                    name, 
-                    success: false, 
+                results.push({
+                    name,
+                    success: false,
                     error: error as Error,
-                    duration 
+                    duration
                 });
             }
         }

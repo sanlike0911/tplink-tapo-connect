@@ -136,3 +136,6 @@ dist
 # Vite logs files
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
+
+# project workspace
+tplink-tapo-connect.code-workspace

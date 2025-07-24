@@ -31,22 +31,7 @@ async function main(): Promise<void> {
       console.log('Device info error:', error);
     }
 
-    // Test device info retrieval with explicit P105 specification
-    console.log('\n--- Getting Device Info (Explicit P105) ---');
-    try {
-      const deviceInfoResult = await wrapper.getTapoDeviceInfo(email, password, plugIp, 'P105');
-      if (deviceInfoResult.result) {
-        console.log('P105 Device Info Retrieved Successfully:');
-        console.log('- Model:', deviceInfoResult.tapoDeviceInfo?.model);
-        console.log('- Device On:', deviceInfoResult.tapoDeviceInfo?.deviceOn);
-      } else {
-        console.log('Failed to get P105 device info:', deviceInfoResult.errorInf?.message);
-      }
-    } catch (error) {
-      console.log('P105 device info error:', error);
-    }
-
-    // Test rapid on/off operations like Python tapo example (tapo_p110.py)
+    // Test rapid on/off operations like Python tapo example
     console.log('\n--- Testing Rapid On/Off Operations (Python-style) ---');
     console.log('Turning device on...');
     await wrapper.setTapoTurnOn(email, password, plugIp, 'auto');
@@ -57,76 +42,8 @@ async function main(): Promise<void> {
     console.log('Turning device off...');
     await wrapper.setTapoTurnOff(email, password, plugIp, 'auto');
 
-    console.log('Waiting 2 seconds...');
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    console.log('Turning device on...');
-    await wrapper.setTapoTurnOn(email, password, plugIp, 'auto');
-
-    // Test immediate consecutive operations (should work with session reuse)
-    console.log('\n--- Testing Immediate Consecutive Operations ---');
-    await wrapper.setTapoTurnOff(email, password, plugIp, 'auto');
-
-    // Test turn on with auto-detection
-    console.log('\n--- Testing Turn On (Auto Detection) ---');
-    try {
-      const turnOnResult = await wrapper.setTapoTurnOn(email, password, plugIp, 'auto');
-      if (turnOnResult.result) {
-        console.log('Successfully turned on device with auto-detection');
-      } else {
-        console.log('Failed to turn on device:', turnOnResult.errorInf?.message);
-      }
-    } catch (error) {
-      console.log('Turn on error:', error);
-    }
-
     // Wait a moment
     await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Test turn off with explicit P115 device type
-    console.log('\n--- Testing Turn Off (Explicit P115) ---');
-    try {
-      const turnOffResult = await wrapper.setTapoTurnOff(email, password, plugIp, 'auto');
-      if (turnOffResult.result) {
-        console.log('Successfully turned off P115 device');
-      } else {
-        console.log('Failed to turn off P115 device:', turnOffResult.errorInf?.message);
-      }
-    } catch (error) {
-      console.log('P115 turn off error:', error);
-    }
-
-    // Wait a moment
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Test turn on with explicit P100 device type
-    console.log('\n--- Testing Turn On (Explicit P100) ---');
-    try {
-      const turnOnResult = await wrapper.setTapoTurnOn(email, password, plugIp, 'P100');
-      if (turnOnResult.result) {
-        console.log('Successfully turned on P100 device');
-      } else {
-        console.log('Failed to turn on P100 device:', turnOnResult.errorInf?.message);
-      }
-    } catch (error) {
-      console.log('P100 turn on error:', error);
-    }
-
-    // Wait a moment
-    await new Promise(resolve => setTimeout(resolve, 2000));
-
-    // Test turn off with explicit P115 device type
-    console.log('\n--- Testing Turn Off (Explicit P115) ---');
-    try {
-      const turnOffResult = await wrapper.setTapoTurnOff(email, password, plugIp, 'P115');
-      if (turnOffResult.result) {
-        console.log('Successfully turned off P115 device');
-      } else {
-        console.log('Failed to turn off P115 device:', turnOffResult.errorInf?.message);
-      }
-    } catch (error) {
-      console.log('P115 turn off error:', error);
-    }
 
     // Test energy usage with explicit P110 device type
     console.log('\n--- Testing Energy Usage (Explicit P110) ---');
@@ -152,19 +69,6 @@ async function main(): Promise<void> {
       }
     } catch (error) {
       console.log('P105 turn on error:', error);
-    }
-
-    // Test energy usage with auto-detection (should gracefully handle device capabilities)
-    console.log('\n--- Testing Energy Usage (Auto Detection) ---');
-    try {
-      const energyResult = await wrapper.getTapoEnergyUsage(email, password, plugIp, 'auto');
-      if (energyResult.result) {
-        console.log('Auto-detected energy usage retrieved:', energyResult.tapoDeviceInfo);
-      } else {
-        console.log('Energy usage not available (expected for basic plugs):', energyResult.errorInf?.message);
-      }
-    } catch (error) {
-      console.log('Auto-detected energy usage error:', error);
     }
 
     // Test brightness control (should fail for plugs)
