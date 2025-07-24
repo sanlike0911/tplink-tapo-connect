@@ -1,4 +1,4 @@
-import { P105Plug } from './p105-plug';
+import { P105Plug } from './_p105-plug';
 import { TapoCredentials } from '../../types';
 
 /**

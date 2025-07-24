@@ -1,4 +1,4 @@
-import { P105Plug } from './p105-plug';
+import { P105Plug } from './_p105-plug';
 import { TapoCredentials, TapoApiRequest, P105UsageInfo, Result, FeatureNotSupportedError, DeviceCapabilityError } from '../../types';
 
 /**
@@ -92,7 +92,7 @@ export class P110Plug extends P105Plug {
       if (throwOnUnsupported) {
         throw error;
       }
-      
+
       return {
         todayRuntime: 0,
         monthRuntime: 0,

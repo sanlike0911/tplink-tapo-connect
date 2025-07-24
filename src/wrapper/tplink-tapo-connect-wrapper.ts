@@ -76,6 +76,7 @@ class DeviceFactory {
 class ApiClient {
     private username: string;
     private password: string;
+    private deviceCache: Map<string, any> = new Map();
 
     constructor(username: string, password: string) {
         this.username = username;
@@ -106,12 +107,59 @@ class ApiClient {
         return DeviceFactory.createDevice(deviceType, ip, credentials);
     }
 
-    async createDevice(ip: string, deviceType: TapoDeviceType, methodHint?: string): Promise<any> {
+    async createDevice(ip: string, deviceType: TapoDeviceType, methodHint?: string, autoConnect: boolean = true): Promise<any> {
+        // Use IP and deviceType as primary cache key, ignore methodHint for session reuse
+        const primaryCacheKey = `${ip}-${deviceType}`;
+        
+        // Check if we already have a connected device for this IP and type
+        if (this.deviceCache.has(primaryCacheKey)) {
+            const cachedDevice = this.deviceCache.get(primaryCacheKey);
+            // Check if device is still authenticated
+            try {
+                if (cachedDevice && typeof cachedDevice.isAuthenticated === 'function' && cachedDevice.isAuthenticated()) {
+                    console.log(`Using cached connected device for ${ip} (session reuse)`);
+                    return cachedDevice;
+                }
+            } catch (error) {
+                console.log(`Cached device invalid, removing from cache:`, error);
+                this.deviceCache.delete(primaryCacheKey);
+            }
+        }
+
         const credentials: TapoCredentials = {
             username: this.username,
             password: this.password
         };
-        return DeviceFactory.createDevice(deviceType, ip, credentials, methodHint);
+        
+        const device = DeviceFactory.createDevice(deviceType, ip, credentials, methodHint);
+        
+        // Auto-connect if requested
+        if (autoConnect) {
+            try {
+                await device.connect();
+                console.log(`New device connected and cached for ${ip}`);
+            } catch (error) {
+                console.log(`Failed to connect device ${ip}:`, error);
+                throw error;
+            }
+        }
+        
+        this.deviceCache.set(primaryCacheKey, device);
+        return device;
+    }
+
+    clearDeviceCache(): void {
+        // Disconnect all cached devices
+        for (const device of this.deviceCache.values()) {
+            if (device && typeof device.disconnect === 'function') {
+                try {
+                    device.disconnect();
+                } catch (error) {
+                    // Ignore disconnect errors
+                }
+            }
+        }
+        this.deviceCache.clear();
     }
 }
 
@@ -219,6 +267,7 @@ export class tplinkTapoConnectWrapper {
 
     readonly currentWorkingDirectory: string = process.cwd();
     private static _instance: tplinkTapoConnectWrapper;
+    private clientCache: Map<string, ApiClient> = new Map();
 
     /**
      *
@@ -241,6 +290,31 @@ export class tplinkTapoConnectWrapper {
         // Initialization completed
     }
 
+    /**
+     * Get or create a cached ApiClient for given credentials
+     */
+    private getApiClient(email: string, password: string): ApiClient {
+        const clientKey = `${email}:${password}`;
+        
+        if (!this.clientCache.has(clientKey)) {
+            const client = new ApiClient(email, password);
+            this.clientCache.set(clientKey, client);
+        }
+        
+        return this.clientCache.get(clientKey)!;
+    }
+
+    /**
+     * Clear all cached clients and their devices
+     */
+    public clearCache(): void {
+        for (const client of this.clientCache.values()) {
+            if (client && typeof client.clearDeviceCache === 'function') {
+                client.clearDeviceCache();
+            }
+        }
+        this.clientCache.clear();
+    }
 
     /**
      *
@@ -324,7 +398,7 @@ export class tplinkTapoConnectWrapper {
      */
     public async getTapoDevicesList(_email: string = process.env['TAPO_USERNAME'] || "", _password: string): Promise<TapoDevice[] | undefined> {
         try {
-            const client = new ApiClient(_email, _password);
+            const client = this.getApiClient(_email, _password);
             const _devices = await client.getDeviceList();
             return _devices;
         } catch (error) {
@@ -428,7 +502,7 @@ export class tplinkTapoConnectWrapper {
      */
     public async getTapoDeviceInfoAlias(_email: string, _password: string, _alias: string): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> {
         try {
-            const client = new ApiClient(_email, _password);
+            const client = this.getApiClient(_email, _password);
             const _devices = await client.getDeviceList();
             for (const _items of _devices) {
                 if (_items.alias === _alias) {
@@ -464,12 +538,11 @@ export class tplinkTapoConnectWrapper {
             try {
                 let _tapoConnectResults: tplinkTapoConnectWrapperType.tapoConnectResults = { result: false };
 
-                // Use new ApiClient with proper session management
-                const client = new ApiClient(_email, _password);
-                device = await client.createDevice(_targetIp, _deviceType, 'getDeviceInfo');
+                // Use cached ApiClient with proper session management
+                const client = this.getApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'getDeviceInfo', true); // autoConnect=true
                 
-                // Connect to device
-                await device.connect();
+                // Device is already connected
 
                 // get DeviceInfo
                 const _tapoDeviceInfo: TapoDeviceInfo = await device.getDeviceInfo();
@@ -491,14 +564,8 @@ export class tplinkTapoConnectWrapper {
             } catch (error: any) {
                 throw error;
             } finally {
-                // Proper session cleanup
-                if (device && typeof device.disconnect === 'function') {
-                    try {
-                        await device.disconnect();
-                    } catch (closeError) {
-                        // Ignore close errors
-                    }
-                }
+                // Keep session alive for reuse - don't disconnect
+                // Device will manage its own session lifecycle
             }
         };
 
@@ -538,11 +605,11 @@ export class tplinkTapoConnectWrapper {
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
             try {
-                // Use specified device type for energy monitoring functionality
-                device = DeviceFactory.createDevice(_deviceType, _targetIp, { username: _email, password: _password }, 'getEnergyUsage');
+                // Use cached ApiClient for energy monitoring functionality
+                const client = this.getApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'getEnergyUsage', true); // autoConnect=true
                 
-                // Connect to device
-                await device.connect();
+                // Device is already connected via createDevice
 
                 // get EnergyUsage
                 const _tapoEnergyUsage = await device.getEnergyUsage();
@@ -597,25 +664,18 @@ export class tplinkTapoConnectWrapper {
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
             try {
-                // Use new ApiClient with proper session management
-                const client = new ApiClient(_email, _password);
-                device = await client.createDevice(_targetIp, _deviceType, 'turnOn');
+                // Use cached ApiClient with proper session management
+                const client = this.getApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'turnOn', true); // autoConnect=true
                 
-                // Connect and turn on
-                await device.connect();
+                // Device is already connected, just execute command
                 await device.on();
                 return { result: true };
             } catch (error: any) {
                 throw error;
             } finally {
-                // Proper session cleanup
-                if (device && typeof device.disconnect === 'function') {
-                    try {
-                        await device.disconnect();
-                    } catch (closeError) {
-                        // Ignore close errors
-                    }
-                }
+                // Keep session alive for reuse - don't disconnect immediately
+                // Session will be managed by device cache
             }
         };
 
@@ -655,25 +715,18 @@ export class tplinkTapoConnectWrapper {
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
             let device = null;
             try {
-                // Use new ApiClient with proper session management
-                const client = new ApiClient(_email, _password);
-                device = await client.createDevice(_targetIp, _deviceType, 'turnOff');
+                // Use cached ApiClient with proper session management
+                const client = this.getApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'turnOff', true); // autoConnect=true
                 
-                // Connect and turn off
-                await device.connect();
+                // Device is already connected, just execute command
                 await device.off();
                 return { result: true };
             } catch (error: any) {
                 throw error;
             } finally {
-                // Proper session cleanup
-                if (device && typeof device.disconnect === 'function') {
-                    try {
-                        await device.disconnect();
-                    } catch (closeError) {
-                        // Ignore close errors
-                    }
-                }
+                // Keep session alive for reuse - don't disconnect immediately
+                // Session will be managed by device cache
             }
         };
 
@@ -720,11 +773,10 @@ export class tplinkTapoConnectWrapper {
                     throw new Error("Brightness must be between 1-100");
                 }
                 
-                const client = new ApiClient(_email, _password);
-                device = await client.createDevice(_targetIp, _deviceType, 'setBrightness');
+                const client = this.getApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'setBrightness', true); // autoConnect=true
                 
-                // Connect to device
-                await device.connect();
+                // Device is already connected via createDevice
 
                 // Set brightness
                 await device.setBrightness(_brightness);
@@ -785,11 +837,10 @@ export class tplinkTapoConnectWrapper {
                     throw new Error("Color value cannot be empty");
                 }
                 
-                const client = new ApiClient(_email, _password);
-                device = await client.createDevice(_targetIp, _deviceType, 'setColor');
+                const client = this.getApiClient(_email, _password);
+                device = await client.createDevice(_targetIp, _deviceType, 'setColor', true); // autoConnect=true
                 
-                // Connect to device
-                await device.connect();
+                // Device is already connected via createDevice
 
                 // Set named color
                 await device.setNamedColor(_colour);

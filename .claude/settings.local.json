@@ -21,7 +21,8 @@
       "Bash(export PLUG_IP=\"192.168.0.78\")",
       "Bash(npx jest:*)",
       "Bash(npm test:*)",
-      "Bash(touch:*)"
+      "Bash(touch:*)",
+      "WebFetch(domain:lib.rs)"
     ],
     "deny": []
   }

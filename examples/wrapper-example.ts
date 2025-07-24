@@ -46,6 +46,27 @@ async function main(): Promise<void> {
       console.log('P105 device info error:', error);
     }
 
+    // Test rapid on/off operations like Python tapo example (tapo_p110.py)
+    console.log('\n--- Testing Rapid On/Off Operations (Python-style) ---');
+    console.log('Turning device on...');
+    await wrapper.setTapoTurnOn(email, password, plugIp, 'auto');
+
+    console.log('Waiting 2 seconds...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    console.log('Turning device off...');
+    await wrapper.setTapoTurnOff(email, password, plugIp, 'auto');
+
+    console.log('Waiting 2 seconds...');
+    await new Promise(resolve => setTimeout(resolve, 2000));
+
+    console.log('Turning device on...');
+    await wrapper.setTapoTurnOn(email, password, plugIp, 'auto');
+
+    // Test immediate consecutive operations (should work with session reuse)
+    console.log('\n--- Testing Immediate Consecutive Operations ---');
+    await wrapper.setTapoTurnOff(email, password, plugIp, 'auto');
+
     // Test turn on with auto-detection
     console.log('\n--- Testing Turn On (Auto Detection) ---');
     try {

@@ -1,20 +1,15 @@
 import { BaseTapoDevice, TapoCredentials, TapoApiRequest, TapoApiResponse, P105DeviceInfo, P105UsageInfo, FeatureNotSupportedError, DeviceCapabilityError, Result, DeviceMethodOptions } from '../../types';
-import { TapoAuth, KlapAuth } from '../../core';
+import { UnifiedTapoProtocol } from '../../core/unified-protocol';
 
 export class P105Plug extends BaseTapoDevice {
-  private auth: TapoAuth;
-  private klapAuth: KlapAuth;
-  private useKlap: boolean = false;
+  private unifiedProtocol: UnifiedTapoProtocol;
   private featureCache: Map<string, boolean> = new Map();
   private deviceModel?: string;
   private requestQueue: Promise<any> = Promise.resolve();
-  private lastRequestTime: number = 0;
-  private readonly minRequestInterval: number = 1000; // Minimum interval between requests
 
   constructor(ip: string, credentials: TapoCredentials) {
     super(ip, credentials);
-    this.auth = new TapoAuth(ip, credentials);
-    this.klapAuth = new KlapAuth(ip, credentials);
+    this.unifiedProtocol = new UnifiedTapoProtocol(ip, credentials);
   }
 
   private async checkDeviceConnectivity(): Promise<boolean> {
@@ -31,7 +26,7 @@ export class P105Plug extends BaseTapoDevice {
   }
 
   public async connect(): Promise<void> {
-    console.log('P105Plug.connect() called');
+    console.log('P105Plug.connect() called - using unified protocol');
     
     // Check basic device connectivity first
     console.log('Checking device connectivity...');
@@ -39,102 +34,31 @@ export class P105Plug extends BaseTapoDevice {
     if (!isReachable) {
       throw new Error(`Device at ${this.ip} is not reachable. Check IP address and network connectivity.`);
     }
-    console.log('Device is reachable, proceeding with authentication...');
+    console.log('Device is reachable, proceeding with unified protocol connection...');
     
-    const maxRetries = 2;
-    let securePassthroughError: Error | null = null;
-    let klapError: Error | null = null;
-
-    for (let attempt = 1; attempt <= maxRetries; attempt++) {
-      console.log(`Connection attempt ${attempt}/${maxRetries}`);
-      
-      // Try KLAP first (newer protocol, more reliable)
-      try {
-        console.log('Trying KLAP authentication...');
-        await this.klapAuth.authenticate();
-        this.useKlap = true;
-        console.log('KLAP authentication successful');
-        return;
-      } catch (error) {
-        klapError = error as Error;
-        console.log('KLAP failed:', error);
-        
-        // Try Secure Passthrough as fallback
-        try {
-          console.log('Trying Secure Passthrough authentication...');
-          await this.auth.authenticate();
-          this.useKlap = false;
-          console.log('Secure Passthrough authentication successful');
-          return;
-        } catch (fallbackError) {
-          securePassthroughError = fallbackError as Error;
-          console.log('Secure Passthrough failed:', fallbackError);
-        }
-      }
-
-      if (attempt < maxRetries) {
-        console.log(`Both modern protocols failed, retrying in 2 seconds...`);
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
+    try {
+      await this.unifiedProtocol.connect();
+      console.log(`Connected successfully using ${this.unifiedProtocol.getActiveProtocol()} protocol`);
+    } catch (error) {
+      console.error('Unified protocol connection failed:', error);
+      throw error;
     }
-
-    console.error('All authentication attempts failed');
-    
-    // Check if this might be a legacy device and provide helpful error message
-    const isLikelyLegacyDevice = this.isLikelyLegacyDevice(klapError, securePassthroughError);
-    
-    if (isLikelyLegacyDevice) {
-      throw new Error(
-        `This device appears to be a legacy Tapo device that is not supported by this library. ` +
-        `Legacy devices require older protocols that are no longer supported for security reasons. ` +
-        `Please upgrade to a newer Tapo device that supports KLAP or Secure Passthrough protocols. ` +
-        `Error details - KLAP: ${klapError?.message}; Secure Passthrough: ${securePassthroughError?.message}`
-      );
-    }
-    
-    throw new Error(`Authentication failed after ${maxRetries} attempts - KLAP: ${klapError?.message}; Secure Passthrough: ${securePassthroughError?.message}`);
   }
 
-  private isLikelyLegacyDevice(klapError: Error | null, securePassthroughError: Error | null): boolean {
-    // Check for patterns that indicate a legacy device
-    const legacyIndicators = [
-      'KLAP protocol not supported',
-      'socket hang up',
-      'ECONNREFUSED',
-      'HTTP request failed',
-      'Tapo API error: -1010',
-      'Tapo API error: -1009',
-      '404',
-      'handshake1 failed'
-    ];
-
-    const klapMessage = klapError?.message || '';
-    const passthroughMessage = securePassthroughError?.message || '';
-    const combinedMessage = (klapMessage + ' ' + passthroughMessage).toLowerCase();
-
-    // If both modern protocols fail with these specific patterns, likely legacy
-    const hasLegacyPattern = legacyIndicators.some(indicator => 
-      combinedMessage.includes(indicator.toLowerCase())
-    );
-
-    // Additional check: if KLAP is not supported AND Secure Passthrough has connection issues
-    const klapNotSupported = klapMessage.toLowerCase().includes('not supported');
-    const passthroughConnectionIssue = passthroughMessage.toLowerCase().includes('socket hang up') || 
-                                      passthroughMessage.toLowerCase().includes('econnrefused');
-
-    return hasLegacyPattern && (klapNotSupported || passthroughConnectionIssue);
-  }
 
   public async disconnect(): Promise<void> {
     try {
-      if (this.useKlap) {
-        await this.klapAuth.clearSession();
-      } else {
-        this.auth.clearSession();
-      }
+      await this.unifiedProtocol.disconnect();
     } catch (error) {
       console.warn('Warning during disconnect:', error);
     }
+  }
+
+  /**
+   * Check if device is currently authenticated
+   */
+  public isAuthenticated(): boolean {
+    return this.unifiedProtocol.isConnected();
   }
 
   public override async getDeviceInfo(): Promise<P105DeviceInfo> {
@@ -404,215 +328,24 @@ export class P105Plug extends BaseTapoDevice {
   }
 
   protected async sendRequest<T>(request: TapoApiRequest): Promise<TapoApiResponse<T>> {
-    // Queue requests to prevent overloading the device
+    // Use sequential request queue to prevent KLAP session conflicts (like Python tapo)
     return this.requestQueue = this.requestQueue.then(async () => {
-      // Rate limiting: ensure minimum interval between requests
-      const now = Date.now();
-      const timeSinceLastRequest = now - this.lastRequestTime;
-      if (timeSinceLastRequest < this.minRequestInterval) {
-        await new Promise(resolve => setTimeout(resolve, this.minRequestInterval - timeSinceLastRequest));
-      }
-      this.lastRequestTime = Date.now();
-
-      // First attempt: Use current protocol (KLAP or Secure Passthrough)
-      let primaryError: Error | null = null;
-      
       try {
-        if (this.useKlap) {
-          if (!this.klapAuth.isAuthenticated()) {
-            throw new Error('Device not connected. Call connect() first.');
-          }
-          const result = await this.klapAuth.secureRequest<T>(request);
-          return {
-            error_code: 0,
-            result
-          };
-        } else {
-          if (!this.auth.isAuthenticated()) {
-            throw new Error('Device not connected. Call connect() first.');
-          }
-          const result = await this.auth.secureRequest<T>(request);
-          return {
-            error_code: 0,
-            result
-          };
-        }
+        // Use unified protocol with improved session management
+        const result = await this.unifiedProtocol.executeRequest<T>(request);
+        return {
+          error_code: 0,
+          result
+        };
       } catch (error) {
-        primaryError = error as Error;
-        console.log(`Primary API failed (${this.useKlap ? 'KLAP' : 'Secure Passthrough'}):`, error);
-        
-        // Check if this is a session error that requires re-authentication
-        if (this.isSessionError(error as Error)) {
-          console.log('Session error detected, attempting to re-authenticate...');
-          try {
-            if (this.useKlap) {
-              await this.klapAuth.authenticate();
-              console.log('KLAP re-authentication successful, retrying request...');
-              const result = await this.klapAuth.secureRequest<T>(request);
-              return {
-                error_code: 0,
-                result
-              };
-            } else {
-              await this.auth.authenticate();
-              console.log('Secure Passthrough re-authentication successful, retrying request...');
-              const result = await this.auth.secureRequest<T>(request);
-              return {
-                error_code: 0,
-                result
-              };
-            }
-          } catch (reAuthError) {
-            console.log('Re-authentication failed:', reAuthError);
-            // Continue to fallback logic
-          }
-        }
-        
-        // Check if this is a recoverable error that warrants fallback
-        const isRecoverableError = this.isRecoverableError(error as Error);
-        const isSessionError = this.isSessionError(error as Error);
-        
-        // For session errors (like KLAP 1002), try re-authentication first
-        if (isSessionError) {
-          try {
-            console.log('Session error detected, attempting re-authentication...');
-            if (this.useKlap) {
-              console.log('Re-authenticating KLAP session...');
-              this.klapAuth.clearSession();
-              await this.klapAuth.authenticate();
-            } else {
-              console.log('Re-authenticating Secure Passthrough session...');
-              await this.auth.authenticate();
-            }
-            
-            // Retry the original request after re-authentication
-            console.log('Re-authentication successful, retrying original request...');
-            if (this.useKlap) {
-              const result = await this.klapAuth.secureRequest<T>(request);
-              return { error_code: 0, result };
-            } else {
-              const result = await this.auth.secureRequest<T>(request);
-              return { error_code: 0, result };
-            }
-          } catch (reAuthError) {
-            console.log('Re-authentication failed:', reAuthError);
-            // Continue to fallback logic if re-authentication fails
-          }
-        }
-        
-        if (!isRecoverableError) {
-          // For non-recoverable errors (like authentication issues), don't fallback
-          throw primaryError;
-        }
+        console.error(`Request ${request.method} failed:`, error);
+        throw error;
       }
-
-      // Fallback attempts: Try the other modern protocol
-      const fallbackMethods = [
-        {
-          name: 'Secure Passthrough',
-          auth: this.auth,
-          setup: () => { this.useKlap = false; }
-        },
-        {
-          name: 'KLAP',
-          auth: this.klapAuth,
-          setup: () => { this.useKlap = true; }
-        }
-      ];
-
-      // Remove the current method from fallback options
-      const currentMethod = this.useKlap ? 'KLAP' : 'Secure Passthrough';
-      const availableFallbacks = fallbackMethods.filter(method => method.name !== currentMethod);
-
-      for (const fallback of availableFallbacks) {
-        try {
-          console.log(`Attempting fallback to ${fallback.name}...`);
-          
-          // Clear session and re-authenticate for fallback
-          console.log(`Clearing session and authenticating with ${fallback.name} for fallback...`);
-          if (fallback.name === 'KLAP') {
-            this.klapAuth.clearSession();
-          } else {
-            this.auth.clearSession();
-          }
-          await fallback.auth.authenticate();
-          
-          const result = await fallback.auth.secureRequest<T>(request);
-          console.log(`Fallback to ${fallback.name} succeeded`);
-          
-          // Switch to the successful protocol for future requests
-          fallback.setup();
-          
-          return {
-            error_code: 0,
-            result
-          };
-        } catch (fallbackError) {
-          console.log(`Fallback to ${fallback.name} failed:`, fallbackError);
-        }
-      }
-
-      // All protocols failed
-      throw new Error(
-        `All API protocols failed. Primary (${currentMethod}): ${primaryError?.message}; ` +
-        `Tried fallbacks: ${availableFallbacks.map(f => f.name).join(', ')}`
-      );
     });
   }
 
-  /**
-   * Determine if an error is recoverable and warrants attempting fallback to the other API
-   */
-  private isRecoverableError(error: Error): boolean {
-    const errorMessage = error.message.toLowerCase();
-    
-    // KLAP-specific recoverable errors
-    if (errorMessage.includes('klap -1012') || // Device busy
-        errorMessage.includes('klap -1003') || // Invalid parameters  
-        errorMessage.includes('klap 1002') || // Session expired/invalid
-        errorMessage.includes('session expired') || // Session issues
-        errorMessage.includes('session needs to be re-established') || // Session re-auth needed
-        errorMessage.includes('rate limit') || // Rate limiting
-        errorMessage.includes('connection reset') || // Connection issues
-        errorMessage.includes('timeout') || // Timeouts
-        errorMessage.includes('json')) { // JSON parsing issues
-      return true;
-    }
-    
-    // HTTP-level recoverable errors
-    if (errorMessage.includes('http 429') || // Rate limit
-        errorMessage.includes('econnreset') || // Connection reset
-        errorMessage.includes('etimedout') || // Timeout
-        errorMessage.includes('network') || // Network issues
-        errorMessage.includes('socket')) { // Socket issues
-      return true;
-    }
-    
-    // Protocol-specific recoverable errors
-    if (errorMessage.includes('protocol not supported') ||
-        errorMessage.includes('bad decrypt') ||
-        errorMessage.includes('session corruption')) {
-      return true;
-    }
-    
-    // Non-recoverable errors (don't fallback for these)
-    if (errorMessage.includes('email or password incorrect') ||
-        errorMessage.includes('authentication') ||
-        errorMessage.includes('not connected') ||
-        errorMessage.includes('device not found')) {
-      return false;
-    }
-    
-    // Default: treat unknown errors as potentially recoverable
-    return true;
-  }
 
 
-  private isSessionError(error: Error): boolean {
-    const errorMessage = error.message.toLowerCase();
-    return errorMessage.includes('klap 1002') || 
-           errorMessage.includes('session expired') || 
-           errorMessage.includes('session needs to be re-established') ||
-           errorMessage.includes('klap -1001');
-  }
+
+
 }
