@@ -53,7 +53,7 @@ describe('P105Plug Unit Tests', () => {
         overheated: false,
         // Computed properties
         deviceId: 'TEST123',
-        deviceOn: true,
+        device_on: true,
         onTime: 0,
         fwVer: '1.0.0',
         hwVer: '1.0.0',
@@ -160,7 +160,7 @@ describe('P105Plug Unit Tests', () => {
         oem_id: 'TEST_OEM',
         // Computed properties
         deviceId: 'TEST123',
-        deviceOn: true,
+        device_on: true,
         onTime: 3600,
         fwVer: '1.0.0',
         hwVer: '1.0.0',
@@ -213,7 +213,7 @@ describe('P105Plug Unit Tests', () => {
         oem_id: 'TEST_OEM',
         // Computed properties
         deviceId: 'TEST123',
-        deviceOn: true,
+        device_on: true,
         onTime: 0,
         fwVer: '1.0.0',
         hwVer: '1.0.0',
@@ -266,7 +266,7 @@ describe('P105Plug Unit Tests', () => {
         overheated: false,
         // Computed properties
         deviceId: 'TEST123',
-        deviceOn: true,
+        device_on: true,
         onTime: 0,
         fwVer: '1.0.0',
         hwVer: '1.0.0',
@@ -312,7 +312,7 @@ describe('P105Plug Unit Tests', () => {
         overheated: false,
         // Computed properties
         deviceId: 'TEST123',
-        deviceOn: false,
+        device_on: false,
         onTime: 0,
         fwVer: '1.0.0',
         hwVer: '1.0.0',
@@ -367,7 +367,7 @@ describe('P105Plug Unit Tests', () => {
 
       // Check transformation
       expect(deviceInfo.deviceId).toBe('RAW123');
-      expect(deviceInfo.deviceOn).toBe(true);
+      expect(deviceInfo.device_on).toBe(true);
       expect(deviceInfo.onTime).toBe(7200);
       expect(deviceInfo.fwVer).toBe('2.0.0');
       expect(deviceInfo.hwVer).toBe('2.0.0');

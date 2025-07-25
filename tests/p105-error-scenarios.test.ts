@@ -245,7 +245,7 @@ describe('P105Plug Error Scenarios Tests', () => {
       
       // Should handle missing fields with defaults
       expect(deviceInfo.deviceId).toBeDefined();
-      expect(deviceInfo.deviceOn).toBeDefined();
+      expect(deviceInfo.device_on).toBeDefined();
       expect(deviceInfo.deviceType).toBe('SMART.TAPOPLUG');
     });
 
@@ -273,7 +273,7 @@ describe('P105Plug Error Scenarios Tests', () => {
       
       // Should handle type conversion gracefully
       expect(typeof deviceInfo.deviceId).toBe('string');
-      expect(typeof deviceInfo.deviceOn).toBe('boolean');
+      expect(typeof deviceInfo.device_on).toBe('boolean');
     });
   });
 

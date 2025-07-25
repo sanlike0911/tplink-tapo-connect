@@ -22,7 +22,11 @@
       "Bash(npx jest:*)",
       "Bash(npm test:*)",
       "Bash(touch:*)",
-      "WebFetch(domain:lib.rs)"
+      "WebFetch(domain:lib.rs)",
+      "WebFetch(domain:chaidarun.com)",
+      "Bash(node:*)",
+      "WebFetch(domain:dev.to)",
+      "WebFetch(domain:www.npmjs.com)"
     ],
     "deny": []
   }

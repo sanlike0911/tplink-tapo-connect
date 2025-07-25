@@ -119,7 +119,7 @@ export abstract class BaseDeviceRefactored extends BaseTapoDevice {
     const request: TapoApiRequest = {
       method: 'set_device_info',
       params: {
-        deviceOn: true
+        device_on: true
       }
     };
     await this.sendRequest(request);
@@ -129,7 +129,7 @@ export abstract class BaseDeviceRefactored extends BaseTapoDevice {
     const request: TapoApiRequest = {
       method: 'set_device_info',
       params: {
-        deviceOn: false
+        device_on: false
       }
     };
     await this.sendRequest(request);
@@ -137,7 +137,7 @@ export abstract class BaseDeviceRefactored extends BaseTapoDevice {
 
   public async toggle(): Promise<void> {
     const deviceInfo = await this.getDeviceInfo();
-    if (deviceInfo.deviceOn) {
+    if (deviceInfo.device_on) {
       await this.turnOff();
     } else {
       await this.turnOn();
@@ -160,7 +160,7 @@ export abstract class BaseDeviceRefactored extends BaseTapoDevice {
    */
   public async isOn(): Promise<boolean> {
     const deviceInfo = await this.getDeviceInfo();
-    return deviceInfo.deviceOn;
+    return deviceInfo.device_on;
   }
 
   /**

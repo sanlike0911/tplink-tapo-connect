@@ -74,7 +74,7 @@ export class P105Plug extends BaseTapoDevice {
       ...rawData,
       // Computed properties for backward compatibility
       deviceId: rawData.device_id,
-      deviceOn: rawData.device_on,
+      device_on: rawData.device_on,
       onTime: rawData.on_time || 0,
       fwVer: rawData.fw_ver,
       hwVer: rawData.hw_ver,

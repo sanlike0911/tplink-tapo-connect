@@ -82,7 +82,7 @@ async function testBasicOperations(plug: any, model: string): Promise<void> {
     console.log('  Getting device information...');
     const deviceInfo = await plug.getDeviceInfo();
     console.log(`  ✅ Device: ${deviceInfo.model} - ${deviceInfo.nickname || 'No nickname'}`);
-    console.log(`  ✅ Status: ${deviceInfo.deviceOn ? 'ON' : 'OFF'}`);
+    console.log(`  ✅ Status: ${deviceInfo.device_on ? 'ON' : 'OFF'}`);
     console.log(`  ✅ MAC: ${deviceInfo.mac}`);
     console.log(`  ✅ Firmware: ${deviceInfo.fwVer}`);
     

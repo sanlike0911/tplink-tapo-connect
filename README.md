@@ -62,7 +62,7 @@ await plug.toggle();       // Toggle state
 
 // Get device information
 const deviceInfo = await plug.getDeviceInfo();
-console.log('Device:', deviceInfo.model, deviceInfo.deviceOn);
+console.log('Device:', deviceInfo.model, deviceInfo.device_on);
 
 // Check device status
 const isOn = await plug.isOn();
