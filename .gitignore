@@ -137,4 +137,6 @@ dist
 vite.config.js.timestamp-*
 vite.config.ts.timestamp-*
 
+# project files
+tplink-tapo-connect.code-workspace
 /tapo-py/

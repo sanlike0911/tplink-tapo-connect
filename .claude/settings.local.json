@@ -23,10 +23,14 @@
       "Bash(npm test:*)",
       "Bash(touch:*)",
       "WebFetch(domain:lib.rs)",
+<<<<<<< HEAD
       "WebFetch(domain:chaidarun.com)",
       "Bash(node:*)",
       "WebFetch(domain:dev.to)",
       "WebFetch(domain:www.npmjs.com)"
+=======
+      "mcp__ide__getDiagnostics"
+>>>>>>> 1f92a2fae85b4c4cd75a547c0879c51245bd904c
     ],
     "deny": []
   }
