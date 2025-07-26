@@ -16,7 +16,7 @@ async function main(): Promise<void> {
     console.log('Plug IP:', ipAddress);
 
     // Test device list(should fail with current implementation)
-    if (false) { /* non sport */
+    if (true) { /* non sport */
       console.log('\n--- Testing Device List (cloud API not implemented) ---');
       try {
         const deviceList = await wrapper.getTapoDevicesList(email, password);
@@ -27,7 +27,7 @@ async function main(): Promise<void> {
     }
 
     // Test device info retrieval
-    if (false) {
+    if (true) {
       console.log('\n--- Getting Device Info ---');
       console.log('Note: getTapoDeviceInfo() only retrieves basic device information');
       try {
@@ -48,10 +48,10 @@ async function main(): Promise<void> {
     }
 
     // Test rapid on/off operations like Python tapo example (tapo_p110.py)
-    if (false) {
+    if (true) {
       for (let i = 0; i < 2; i++) {
         console.log(`\n--- Testing Rapid On/Off Operations (Python-style) - Cycle ${i + 1}/2 ---`);
-        
+
         // Turn device ON with error handling
         console.log('Turning device on...');
         try {
@@ -61,10 +61,10 @@ async function main(): Promise<void> {
           } else {
             console.log('❌ Failed to turn device ON:', turnOnResult.errorInf?.message);
           }
-        } catch (error) {
-          console.log('❌ Exception while turning device ON:', error instanceof Error ? error.message : error);
+        } catch (error: unknown) {
+          console.log('❌ Exception while turning device ON:', error);
         }
-        
+
         console.log('Waiting 2 seconds...');
         await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -77,8 +77,8 @@ async function main(): Promise<void> {
           } else {
             console.log('❌ Failed to turn device OFF:', turnOffResult.errorInf?.message);
           }
-        } catch (error) {
-          console.log('❌ Exception while turning device OFF:', error instanceof Error ? error.message : error);
+        } catch (error: unknown) {
+          console.log('❌ Exception while turning device OFF:', error);
         }
 
         console.log('Waiting 2 seconds...');
@@ -87,7 +87,7 @@ async function main(): Promise<void> {
     }
 
     // Test energy usage with device detection and validation
-    if (false) {
+    if (true) {
       console.log('\n--- Testing Energy Usage ---');
       const energyResult = await wrapper.getTapoEnergyUsage(email, password, ipAddress);
       if (energyResult.result) {
@@ -113,7 +113,6 @@ async function main(): Promise<void> {
       } catch (error) {
         console.log('Brightness control error (expected):', error);
       }
-
       console.log('Waiting 2 seconds...');
       await new Promise(resolve => setTimeout(resolve, 2000));
 
@@ -127,6 +126,21 @@ async function main(): Promise<void> {
       } catch (error) {
         console.log('Brightness control error (expected):', error);
       }
+      console.log('Waiting 2 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      try {
+        const brightnessResult = await wrapper.setTapoBrightness(email, password, ipAddress, 100);
+        if (brightnessResult.result) {
+          console.log('Brightness set successfully (unexpected for plugs)');
+        } else {
+          console.log('Brightness control failed (expected for plugs):', brightnessResult.errorInf?.message);
+        }
+      } catch (error) {
+        console.log('Brightness control error (expected):', error);
+      }
+      console.log('Waiting 2 seconds...');
+      await new Promise(resolve => setTimeout(resolve, 2000));
     }
 
     console.log('\n=== Wrapper Example Completed ===');

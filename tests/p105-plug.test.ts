@@ -246,7 +246,7 @@ describe('P105Plug Integration Tests', () => {
       const requests = Array(5).fill(null).map(() => plug.getDeviceInfo());
       const results = await Promise.all(requests);
       
-      results.forEach(result => {
+      results.forEach((result: any) => {
         expect(result).toBeDefined();
         expect(result.device_id).toBe(results[0]?.device_id);
       });
@@ -259,7 +259,7 @@ describe('P105Plug Integration Tests', () => {
       const statusChecks = Array(3).fill(null).map(() => plug.isOn());
       const statuses = await Promise.all(statusChecks);
       
-      statuses.forEach(status => {
+      statuses.forEach((status: any) => {
         expect(status).toBe(initialState);
       });
     }, 10000);

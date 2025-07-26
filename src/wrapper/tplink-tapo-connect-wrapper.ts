@@ -5,7 +5,10 @@ import { TapoRetryHandler } from '../utils/retry-utils';
 import { GenericDeviceInfoRetriever } from '../devices/generic-device-info';
 import find from 'local-devices';
 
-// Try different regional endpoints
+/**
+ * Regional cloud endpoints for Tapo cloud API access
+ * Multiple endpoints are provided as fallback options
+ */
 const cloudEndpoints = [
     'https://wap.tplinkcloud.com',
     'https://eu-wap.tplinkcloud.com',
@@ -13,17 +16,20 @@ const cloudEndpoints = [
     'https://n-euw1-wap-gw.tplinkcloud.com'
 ];
 
-// Disable SSL certificate verification for cloud API calls
+/**
+ * Disable SSL certificate verification for cloud API calls
+ * Required for some corporate environments and older certificates
+ */
 process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
 
-/* Device list that supports energy usage */
-const supportEnergyUsage = [
-    "P110",
-    "P115"
-];
+// Import energy monitoring models from plugs types to avoid duplication
+import { energyMonitoringModels } from '../types/plugs';
 
-// Supported device types (for internal use only - external users don't need to specify)
-export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P115' | 'L510' | 'L520' | 'L530';
+/**
+ * Supported Tapo device types for internal use
+ * Used by the device factory for automatic device type detection and instantiation
+ */
+export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P115' | 'L510' | 'L520' | 'L530' | 'UNKNOWN';
 
 // Cloud API response types
 interface CloudAuthResponse {
@@ -69,10 +75,15 @@ interface CloudToken {
     listDevicesByType: (deviceType: string) => Promise<TapoDevice[]>;
 }
 
-// Device factory to create appropriate device instances
+/**
+ * Factory class for creating appropriate Tapo device instances
+ * Handles automatic device type detection and caching for optimal performance
+ */
 class DeviceFactory {
+    /** Device information cache to minimize redundant API calls */
     private static genericInfoCache: Map<string, { info: P105DeviceInfo; timestamp: number }> = new Map();
-    private static readonly CACHE_TTL = 30000; // 30秒キャッシュ
+    /** Cache TTL in milliseconds (30 seconds) */
+    private static readonly CACHE_TTL = 30000;
 
     /**
      * Get device information using lightweight generic retriever
@@ -84,23 +95,22 @@ class DeviceFactory {
     static async getDeviceInfo(ip: string, credentials: TapoCredentials, useCache: boolean = true): Promise<P105DeviceInfo> {
         const cacheKey = `${ip}-${credentials.username}`;
 
-        // キャッシュチェック
+        // Check cache for existing device info
         if (useCache && this.genericInfoCache.has(cacheKey)) {
             const cached = this.genericInfoCache.get(cacheKey)!;
             if (Date.now() - cached.timestamp < this.CACHE_TTL) {
-                console.log(`Using cached device info for ${ip}`);
                 return cached.info;
             }
             this.genericInfoCache.delete(cacheKey);
         }
 
-        // 汎用デバイス情報取得
+        // Retrieve device information using generic retriever
         const infoRetriever = new GenericDeviceInfoRetriever(ip, credentials);
         try {
             await infoRetriever.connect();
             const deviceInfo = await infoRetriever.getDeviceInfo();
 
-            // キャッシュに保存
+            // Cache the retrieved device information
             if (useCache) {
                 this.genericInfoCache.set(cacheKey, {
                     info: deviceInfo,
@@ -123,32 +133,30 @@ class DeviceFactory {
         const model = deviceInfo.model;
         const deviceType = deviceInfo.type;
 
-        console.log(`Inferring device type from model: ${model}, deviceType: ${deviceType}`);
-
-        // デバイスタイプ文字列による判別
+        // Infer device type based on model and device type strings
         if (deviceType === 'SMART.TAPOPLUG') {
-            if (supportEnergyUsage.includes(model)) {
+            if (energyMonitoringModels.includes(model)) {
                 return model.startsWith('P110') ? 'P110' : 'P115';
             }
-            return 'P105';
+            return 'UNKNOWN';
         }
 
-        // 電球系デバイスの判別（将来の拡張用）
+        // Detect bulb devices
         if (deviceType === 'SMART.TAPOBULB' || deviceType?.includes('BULB')) {
             if (model.startsWith('L510')) return 'L510';
             if (model.startsWith('L520')) return 'L520';
             if (model.startsWith('L530')) return 'L530';
         }
 
-        // モデル名による判別（フォールバック）
+        // Fallback detection based on model name
         if (model.startsWith('L510')) return 'L510';
         if (model.startsWith('L520')) return 'L520';
         if (model.startsWith('L530')) return 'L530';
         if (model.startsWith('P110')) return 'P110';
         if (model.startsWith('P115')) return 'P115';
 
-        // デフォルトはP105
-        return 'P105';
+        // Default to P105 for unknown devices
+        return 'UNKNOWN';
     }
 
     /**
@@ -164,14 +172,11 @@ class DeviceFactory {
             // Always get device info first to determine the correct device type
             const deviceInfo = await this.getDeviceInfo(ip, credentials);
             const actualDeviceType = this.inferDeviceTypeFromInfo(deviceInfo);
-            console.log(`Auto-detected device type: ${actualDeviceType} for model: ${deviceInfo.model}`);
 
             return this.createSpecificDevice(actualDeviceType, ip, credentials);
         } catch (error) {
-            console.log('Device info retrieval failed, using method hint fallback:', error);
-            // Fallback to method hint or default P105
+            // Fallback to method hint or default P105 if device info retrieval fails
             const fallbackType = methodHint ? this.getDeviceTypeForMethod(methodHint) : 'P105';
-            console.log(`Using fallback device type: ${fallbackType}`);
             return this.createSpecificDevice(fallbackType, ip, credentials);
         }
     }
@@ -210,7 +215,6 @@ class DeviceFactory {
      */
     static clearDeviceInfoCache(): void {
         this.genericInfoCache.clear();
-        console.log('Device info cache cleared');
     }
 
     static getDeviceTypeForMethod(method: string): TapoDeviceType {
@@ -1211,11 +1215,11 @@ export class tplinkTapoConnectWrapper {
                 const deviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
 
                 // Check if device supports energy monitoring
-                if (!supportEnergyUsage.includes(deviceInfo.model)) {
+                if (!energyMonitoringModels.includes(deviceInfo.model)) {
                     return {
                         result: false,
                         tapoDeviceInfo: deviceInfo,  // Include basic device info even for unsupported devices
-                        errorInf: new Error(`Device model ${deviceInfo.model} does not support energy monitoring. Supported models: ${supportEnergyUsage.join(', ')}`)
+                        errorInf: new Error(`Device model ${deviceInfo.model} does not support energy monitoring. Supported models: ${energyMonitoringModels.join(', ')}`)
                     };
                 }
 
@@ -1300,11 +1304,11 @@ export class tplinkTapoConnectWrapper {
 
                 // Device is already connected, just execute command
                 await device.on();
-                
+
                 // Get device info for successful response
                 const credentials: TapoCredentials = { username: _email, password: _password };
                 const _tapoDeviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
-                
+
                 return { result: true, tapoDeviceInfo: _tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
@@ -1356,11 +1360,11 @@ export class tplinkTapoConnectWrapper {
 
                 // Device is already connected, just execute command
                 await device.off();
-                
+
                 // Get device info for successful response
                 const credentials: TapoCredentials = { username: _email, password: _password };
                 const _tapoDeviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
-                
+
                 return { result: true, tapoDeviceInfo: _tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
@@ -1425,11 +1429,11 @@ export class tplinkTapoConnectWrapper {
 
                 // Set brightness
                 await device.setBrightness(_brightness);
-                
+
                 // Get device info for successful response
                 const credentials: TapoCredentials = { username: _email, password: _password };
                 const _tapoDeviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
-                
+
                 return { result: true, tapoDeviceInfo: _tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
@@ -1499,11 +1503,11 @@ export class tplinkTapoConnectWrapper {
 
                 // Set named color
                 await device.setNamedColor(_colour);
-                
+
                 // Get device info for successful response
                 const credentials: TapoCredentials = { username: _email, password: _password };
                 const _tapoDeviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
-                
+
                 return { result: true, tapoDeviceInfo: _tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
