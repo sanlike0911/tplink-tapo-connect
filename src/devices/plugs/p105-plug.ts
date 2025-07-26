@@ -72,6 +72,9 @@ export class P105Plug extends BaseTapoDevice {
     // Transform raw data to match interface expectations
     const deviceInfo: P105DeviceInfo = {
       ...rawData,
+      // Ensure required fields are properly set
+      on_time: rawData.on_time || 0,
+      overheated: rawData.overheated || false,
       // Computed properties for backward compatibility
       deviceId: rawData.device_id,
       device_on: rawData.device_on,
@@ -115,19 +118,19 @@ export class P105Plug extends BaseTapoDevice {
       const nonEnergyMonitoringModels = ['P100', 'P105', 'KP105'];
       
       // Check if device model is known to support energy monitoring
-      if (energyMonitoringModels.includes(this.deviceModel)) {
+      if (this.deviceModel && energyMonitoringModels.includes(this.deviceModel)) {
         this.featureCache.set(cacheKey, true);
         return true;
       }
       
       // Check if device model is known to NOT support energy monitoring
-      if (nonEnergyMonitoringModels.includes(this.deviceModel)) {
+      if (this.deviceModel && nonEnergyMonitoringModels.includes(this.deviceModel)) {
         this.featureCache.set(cacheKey, false);
         return false;
       }
       
       // For unknown models, try to make a request to determine support
-      if (!energyMonitoringModels.includes(this.deviceModel) && !nonEnergyMonitoringModels.includes(this.deviceModel)) {
+      if (this.deviceModel && !energyMonitoringModels.includes(this.deviceModel) && !nonEnergyMonitoringModels.includes(this.deviceModel)) {
         try {
           const request: TapoApiRequest = {
             method: 'get_energy_usage'

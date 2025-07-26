@@ -74,6 +74,9 @@ export class P100Plug extends BaseTapoDevice {
     // Transform raw data to match interface expectations
     const deviceInfo: PlugDeviceInfo = {
       ...rawData,
+      // Ensure required fields are properly set
+      on_time: rawData.on_time || 0,
+      overheated: rawData.overheated || false,
       // Computed properties for backward compatibility
       deviceId: rawData.device_id,
       deviceOn: rawData.device_on,

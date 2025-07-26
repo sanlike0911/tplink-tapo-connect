@@ -16,12 +16,14 @@ async function main(): Promise<void> {
     console.log('Plug IP:', ipAddress);
 
     // Test device list(should fail with current implementation)
-    console.log('\n--- Testing Device List (cloud API not implemented) ---');
-    try {
-      const deviceList = await wrapper.getTapoDevicesList(email, password);
-      console.log('Device list:', deviceList);
-    } catch (error) {
-      console.log('Device list error (expected):', error);
+    if (false) { /* non sport */
+      console.log('\n--- Testing Device List (cloud API not implemented) ---');
+      try {
+        const deviceList = await wrapper.getTapoDevicesList(email, password);
+        console.log('Device list:', deviceList);
+      } catch (error) {
+        console.log('Device list error (expected):', error);
+      }
     }
 
     // Test device info retrieval
@@ -44,7 +46,7 @@ async function main(): Promise<void> {
     }
 
     // Test rapid on/off operations like Python tapo example (tapo_p110.py)
-    for (let i = 0; i < 0; i++) {
+    for (let i = 0; i < 2; i++) {
       console.log('\n--- Testing Rapid On/Off Operations (Python-style) ---');
       console.log('Turning device on...');
       await wrapper.setTapoTurnOn(email, password, ipAddress);
