@@ -19,17 +19,23 @@ TypeScript/Node.js library for controlling TP-Link Tapo smart devices locally. T
 | P105 | Smart Plug | ❌ | ✅ Supported |
 | P110 | Smart Plug with Energy Monitoring | ✅ | ✅ Supported |
 | P115 | Smart Plug with Energy Monitoring | ✅ | ✅ Supported |
+| L510 | Smart Bulb (Dimmable) | ❌ | ✅ Supported |
+| L520 | Smart Bulb (Dimmable) | ❌ | ✅ Supported |
+| L530 | Smart Bulb (Color) | ❌ | ✅ Supported |
 
 ### Supported Features by Device
 
-| Feature | P100/P105 | P110/P115 |
-|---------|-----------|-----------|
-| Device Info | ✅ | ✅ |
-| Power On/Off | ✅ | ✅ |
-| Device Usage | ✅ | ✅ |
-| Current Power | ❌ | ✅ |
-| Energy Data | ❌ | ✅ |
-| Energy Usage | ❌ | ✅ |
+| Feature | P100/P105 | P110/P115 | L510/L520 | L530 |
+|---------|-----------|-----------|-----------|------|
+| Device Info | ✅ | ✅ | ✅ | ✅ |
+| Power On/Off | ✅ | ✅ | ✅ | ✅ |
+| Device Usage | ✅ | ✅ | ✅ | ✅ |
+| Current Power | ❌ | ✅ | ❌ | ❌ |
+| Energy Data | ❌ | ✅ | ❌ | ❌ |
+| Energy Usage | ❌ | ✅ | ❌ | ❌ |
+| Brightness Control | ❌ | ❌ | ✅ | ✅ |
+| Color Control | ❌ | ❌ | ❌ | ✅ |
+| Color Temperature | ❌ | ❌ | ❌ | ✅ |
 
 ## Installation
 
@@ -280,6 +286,9 @@ const p100 = TapoConnect.createP100Plug(ip, credentials);  // Basic plug
 const p105 = TapoConnect.createP105Plug(ip, credentials);  // Basic plug
 const p110 = TapoConnect.createP110Plug(ip, credentials);  // Energy monitoring plug
 const p115 = TapoConnect.createP115Plug(ip, credentials);  // Energy monitoring plug
+const l510 = TapoConnect.createL510Bulb(ip, credentials);  // Dimmable bulb
+const l520 = TapoConnect.createL520Bulb(ip, credentials);  // Dimmable bulb
+const l530 = TapoConnect.createL530Bulb(ip, credentials);  // Color bulb
 ```
 
 ## API Reference
@@ -292,6 +301,9 @@ const p115 = TapoConnect.createP115Plug(ip, credentials);  // Energy monitoring 
 - `TapoConnect.createP105Plug(ip, credentials)` - Creates P105 plug instance  
 - `TapoConnect.createP110Plug(ip, credentials)` - Creates P110 plug instance
 - `TapoConnect.createP115Plug(ip, credentials)` - Creates P115 plug instance
+- `TapoConnect.createL510Bulb(ip, credentials)` - Creates L510 bulb instance
+- `TapoConnect.createL520Bulb(ip, credentials)` - Creates L520 bulb instance
+- `TapoConnect.createL530Bulb(ip, credentials)` - Creates L530 bulb instance
 
 ### Wrapper Classes
 
