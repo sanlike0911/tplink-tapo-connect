@@ -19,9 +19,7 @@ process.env['NODE_TLS_REJECT_UNAUTHORIZED'] = '0';
 /* Device list that supports energy usage */
 const supportEnergyUsage = [
     "P110",
-    "P115",
-    "KP115",
-    "KP125"
+    "P115"
 ];
 
 // Supported device types (for internal use only - external users don't need to specify)
@@ -1104,8 +1102,7 @@ export class tplinkTapoConnectWrapper {
                 throw "Incorrect colour value";
             }
             const _targetIp: string = await this.getDeviceIp(_email, _password, _alias, _rangeOfIp);
-            await this.setTapoColour(_email, _password, _targetIp, _colour);
-            return { result: true };
+            return await this.setTapoColour(_email, _password, _targetIp, _colour);
         } catch (error: any) {
             return { result: false, errorInf: error };
         }
@@ -1303,7 +1300,12 @@ export class tplinkTapoConnectWrapper {
 
                 // Device is already connected, just execute command
                 await device.on();
-                return { result: true };
+                
+                // Get device info for successful response
+                const credentials: TapoCredentials = { username: _email, password: _password };
+                const _tapoDeviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
+                
+                return { result: true, tapoDeviceInfo: _tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
             } finally {
@@ -1354,7 +1356,12 @@ export class tplinkTapoConnectWrapper {
 
                 // Device is already connected, just execute command
                 await device.off();
-                return { result: true };
+                
+                // Get device info for successful response
+                const credentials: TapoCredentials = { username: _email, password: _password };
+                const _tapoDeviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
+                
+                return { result: true, tapoDeviceInfo: _tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
             } finally {
@@ -1411,9 +1418,19 @@ export class tplinkTapoConnectWrapper {
 
                 // Device is already connected via createDevice
 
+                // Check if device supports brightness control
+                if (typeof device.setBrightness !== 'function') {
+                    throw new Error(`Device at ${_targetIp} does not support brightness control. This feature is only available for bulb devices (L510, L520, L530).`);
+                }
+
                 // Set brightness
                 await device.setBrightness(_brightness);
-                return { result: true };
+                
+                // Get device info for successful response
+                const credentials: TapoCredentials = { username: _email, password: _password };
+                const _tapoDeviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
+                
+                return { result: true, tapoDeviceInfo: _tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
             } finally {
@@ -1475,9 +1492,19 @@ export class tplinkTapoConnectWrapper {
 
                 // Device is already connected via createDevice
 
+                // Check if device supports color control
+                if (typeof device.setNamedColor !== 'function') {
+                    throw new Error(`Device at ${_targetIp} does not support color control. This feature is only available for color bulb devices (L530).`);
+                }
+
                 // Set named color
                 await device.setNamedColor(_colour);
-                return { result: true };
+                
+                // Get device info for successful response
+                const credentials: TapoCredentials = { username: _email, password: _password };
+                const _tapoDeviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
+                
+                return { result: true, tapoDeviceInfo: _tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
             } finally {
