@@ -16,7 +16,7 @@ async function main(): Promise<void> {
     console.log('Plug IP:', ipAddress);
 
     // Test device list(should fail with current implementation)
-    if (true) { /* non sport */
+    if (false) { /* non sport */
       console.log('\n--- Testing Device List (cloud API not implemented) ---');
       try {
         const deviceList = await wrapper.getTapoDevicesList(email, password);
