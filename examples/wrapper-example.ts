@@ -15,21 +15,10 @@ async function main(): Promise<void> {
     console.log('Email:', email);
     console.log('Plug IP:', ipAddress);
 
-    // Test device list(should fail with current implementation)
-    if (false) { /* non sport */
-      console.log('\n--- Testing Device List (cloud API not implemented) ---');
-      try {
-        const deviceList = await wrapper.getTapoDevicesList(email, password);
-        console.log('Device list:', deviceList);
-      } catch (error) {
-        console.log('Device list error (expected):', error);
-      }
-    }
-
     // Test device info retrieval
     if (true) {
       console.log('\n--- Getting Device Info ---');
-      console.log('Note: getTapoDeviceInfo() only retrieves basic device information');
+      console.log('Note: getTapoDeviceInfo() now includes energy usage data for supported devices');
       try {
         const deviceInfoResult = await wrapper.getTapoDeviceInfo(email, password, ipAddress);
         if (deviceInfoResult.result) {
@@ -39,6 +28,25 @@ async function main(): Promise<void> {
           console.log('- Avatar:', deviceInfoResult.tapoDeviceInfo?.avatar);
           console.log('- Device On:', deviceInfoResult.tapoDeviceInfo?.device_on);
           console.log('- On Time:', deviceInfoResult.tapoDeviceInfo?.on_time, 'seconds');
+
+          // Check for energy usage data
+          if (deviceInfoResult.tapoEnergyUsage) {
+            console.log('\n--- Energy Usage Data Found ---');
+            console.log('- Energy Usage Object:', JSON.stringify(deviceInfoResult.tapoEnergyUsage, null, 2));
+
+            // Log specific energy fields if available
+            if (deviceInfoResult.tapoEnergyUsage.current_power !== undefined) {
+              console.log('- Current Power:', deviceInfoResult.tapoEnergyUsage.current_power, 'mW');
+            }
+            if (deviceInfoResult.tapoEnergyUsage.today_runtime !== undefined) {
+              console.log('- Today Runtime:', deviceInfoResult.tapoEnergyUsage.today_runtime, 'minutes');
+            }
+            if (deviceInfoResult.tapoEnergyUsage.today_energy !== undefined) {
+              console.log('- Today Energy:', deviceInfoResult.tapoEnergyUsage.today_energy, 'Wh');
+            }
+          } else {
+            console.log('- Energy Usage Data: Not available (device may not support energy monitoring)');
+          }
         } else {
           console.log('Failed to get device info:', deviceInfoResult.errorInf?.message);
         }
@@ -49,7 +57,7 @@ async function main(): Promise<void> {
 
     // Test rapid on/off operations like Python tapo example (tapo_p110.py)
     if (true) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 1; i++) {
         console.log(`\n--- Testing Rapid On/Off Operations (Python-style) - Cycle ${i + 1}/2 ---`);
 
         // Turn device ON with error handling
@@ -94,9 +102,35 @@ async function main(): Promise<void> {
         console.log('✅ Energy usage retrieved successfully');
         console.log('   Device Model:', energyResult.tapoDeviceInfo?.model);
         console.log('   Device Type:', energyResult.tapoDeviceInfo?.type);
-        console.log('   Energy data available in tapoEnergyUsage field');
+
+        // Check for energy usage data
+        if (energyResult.tapoEnergyUsage) {
+          console.log('\n--- Energy Usage Data Details ---');
+          console.log('- Full Energy Usage Object:', JSON.stringify(energyResult.tapoEnergyUsage, null, 2));
+
+          // Log specific energy fields if available
+          if (energyResult.tapoEnergyUsage.current_power !== undefined) {
+            console.log('- Current Power:', energyResult.tapoEnergyUsage.current_power, 'mW');
+          }
+          if (energyResult.tapoEnergyUsage.today_runtime !== undefined) {
+            console.log('- Today Runtime:', energyResult.tapoEnergyUsage.today_runtime, 'minutes');
+          }
+          if (energyResult.tapoEnergyUsage.today_energy !== undefined) {
+            console.log('- Today Energy:', energyResult.tapoEnergyUsage.today_energy, 'Wh');
+          }
+          if (energyResult.tapoEnergyUsage.month_runtime !== undefined) {
+            console.log('- Month Runtime:', energyResult.tapoEnergyUsage.month_runtime, 'minutes');
+          }
+          if (energyResult.tapoEnergyUsage.month_energy !== undefined) {
+            console.log('- Month Energy:', energyResult.tapoEnergyUsage.month_energy, 'Wh');
+          }
+        } else {
+          console.log('- Energy Usage Data: Not available in result');
+        }
       } else {
         console.log('ℹ️ Energy usage not available (expected for basic plugs):', energyResult.errorInf?.message);
+        console.log('   Device Model:', energyResult.tapoDeviceInfo?.model);
+        console.log('   Device Type:', energyResult.tapoDeviceInfo?.type);
       }
     }
 
