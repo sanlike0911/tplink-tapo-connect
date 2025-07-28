@@ -29,7 +29,7 @@ import { energyMonitoringModels } from '../types/plugs';
  * Supported Tapo device types for internal use
  * Used by the device factory for automatic device type detection and instantiation
  */
-export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P115' | 'L510' | 'L520' | 'L530' | 'UNKNOWN';
+export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P110M' | 'P115' | 'L510' | 'L520' | 'L530' | 'UNKNOWN';
 
 // Cloud API response types
 interface CloudAuthResponse {
@@ -133,27 +133,22 @@ class DeviceFactory {
         const model = deviceInfo.model;
         const deviceType = deviceInfo.type;
 
-        // Infer device type based on model and device type strings
-        if (deviceType === 'SMART.TAPOPLUG') {
-            if (energyMonitoringModels.includes(model)) {
-                return model.startsWith('P110') ? 'P110' : 'P115';
-            }
-            return 'UNKNOWN';
+        switch (deviceType) {
+            case 'SMART.TAPOPLUG':
+                if (model.startsWith('P100')) return 'P100';
+                if (model.startsWith('P105')) return 'P105';
+                if (model.startsWith('P110')) return 'P110';
+                if (model.startsWith('P110M')) return 'P110M';
+                if (model.startsWith('P115')) return 'P115';
+                break;
+            case "SMART.TAPOBULB":
+                if (model.startsWith('L510')) return 'L510';
+                if (model.startsWith('L520')) return 'L520';
+                if (model.startsWith('L530')) return 'L530';
+                break;
+            default:
+                return 'UNKNOWN';
         }
-
-        // Detect bulb devices
-        if (deviceType === 'SMART.TAPOBULB' || deviceType?.includes('BULB')) {
-            if (model.startsWith('L510')) return 'L510';
-            if (model.startsWith('L520')) return 'L520';
-            if (model.startsWith('L530')) return 'L530';
-        }
-
-        // Fallback detection based on model name
-        if (model.startsWith('L510')) return 'L510';
-        if (model.startsWith('L520')) return 'L520';
-        if (model.startsWith('L530')) return 'L530';
-        if (model.startsWith('P110')) return 'P110';
-        if (model.startsWith('P115')) return 'P115';
 
         // Default to P105 for unknown devices
         return 'UNKNOWN';
@@ -195,6 +190,8 @@ class DeviceFactory {
             case 'P105':
                 return TapoConnect.createP105Plug(ip, credentials);
             case 'P110':
+                return TapoConnect.createP110Plug(ip, credentials);
+            case 'P110M':
                 return TapoConnect.createP110Plug(ip, credentials);
             case 'P115':
                 return TapoConnect.createP115Plug(ip, credentials);
