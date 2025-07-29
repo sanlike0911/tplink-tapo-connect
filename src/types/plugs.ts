@@ -1,56 +1,5 @@
 import { TapoDeviceInfo } from './base';
 
-/**
- * Tapo device categories
- */
-export type TapoDeviceCategory = 'PLUG' | 'BULB' | 'UNKNOWN';
-
-/**
- * Supported Tapo device types
- */
-export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P110M' | 'P115' | 'L510' | 'L520' | 'L530' | 'UNKNOWN';
-
-/**
- * Device models that support energy monitoring
- */
-export const energyMonitoringModels: TapoDeviceType[] = ['P110', 'P110M', 'P115'];
-
-/**
- * Device type to category mapping
- */
-export const deviceTypeToCategory: Record<TapoDeviceType, TapoDeviceCategory> = {
-  P100: 'PLUG',
-  P105: 'PLUG',
-  P110: 'PLUG',
-  P110M: 'PLUG',
-  P115: 'PLUG',
-  L510: 'BULB',
-  L520: 'BULB',
-  L530: 'BULB',
-  UNKNOWN: 'UNKNOWN'
-};
-
-/**
- * Get device category from device type
- */
-export function getDeviceCategory(deviceType: TapoDeviceType): TapoDeviceCategory {
-  return deviceTypeToCategory[deviceType];
-}
-
-/**
- * Check if device supports brightness control (only bulbs)
- */
-export function supportsBrightnessControl(deviceType: TapoDeviceType): boolean {
-  return getDeviceCategory(deviceType) === 'BULB';
-}
-
-/**
- * Check if device supports color control (only L530)
- */
-export function supportsColorControl(deviceType: TapoDeviceType): boolean {
-  return deviceType === 'L530';
-}
-
 export interface PlugDeviceInfo extends TapoDeviceInfo {
   auto_off_remain_time: number;
   auto_off_status: 'on' | 'off';

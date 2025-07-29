@@ -55,45 +55,6 @@ async function main(): Promise<void> {
       }
     }
 
-    // Test rapid on/off operations like Python tapo example
-    if (true) {
-      for (let i = 0; i < 1; i++) {
-        console.log(`\n--- Testing Rapid On/Off Operations (Python-style) - Cycle ${i + 1}/2 ---`);
-
-        // Turn device ON with error handling
-        console.log('Turning device on...');
-        try {
-          const turnOnResult = await wrapper.setTapoTurnOn(email, password, ipAddress);
-          if (turnOnResult.result) {
-            console.log('✅ Device turned ON successfully');
-          } else {
-            console.log('❌ Failed to turn device ON:', turnOnResult.errorInf?.message);
-          }
-        } catch (error: unknown) {
-          console.log('❌ Exception while turning device ON:', error);
-        }
-
-        console.log('Waiting 2 seconds...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-
-        // Turn device OFF with error handling
-        console.log('Turning device off...');
-        try {
-          const turnOffResult = await wrapper.setTapoTurnOff(email, password, ipAddress);
-          if (turnOffResult.result) {
-            console.log('✅ Device turned OFF successfully');
-          } else {
-            console.log('❌ Failed to turn device OFF:', turnOffResult.errorInf?.message);
-          }
-        } catch (error: unknown) {
-          console.log('❌ Exception while turning device OFF:', error);
-        }
-
-        console.log('Waiting 2 seconds...');
-        await new Promise(resolve => setTimeout(resolve, 2000));
-      }
-    }
-
     // Test energy usage with device detection and validation
     if (true) {
       console.log('\n--- Testing Energy Usage ---');
@@ -131,6 +92,45 @@ async function main(): Promise<void> {
         console.log('ℹ️ Energy usage not available (expected for basic plugs):', energyResult.errorInf?.message);
         console.log('   Device Model:', energyResult.tapoDeviceInfo?.model);
         console.log('   Device Type:', energyResult.tapoDeviceInfo?.type);
+      }
+    }
+
+    // Test rapid on/off operations like Python tapo example
+    if (true) {
+      for (let i = 0; i < 2; i++) {
+        console.log(`\n--- Testing Rapid On/Off Operations (Python-style) - Cycle ${i + 1}/2 ---`);
+
+        // Turn device ON with error handling
+        console.log('Turning device on...');
+        try {
+          const turnOnResult = await wrapper.setTapoTurnOn(email, password, ipAddress);
+          if (turnOnResult.result) {
+            console.log('✅ Device turned ON successfully');
+          } else {
+            console.log('❌ Failed to turn device ON:', turnOnResult.errorInf?.message);
+          }
+        } catch (error: unknown) {
+          console.log('❌ Exception while turning device ON:', error);
+        }
+
+        console.log('Waiting 2 seconds...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
+
+        // Turn device OFF with error handling
+        console.log('Turning device off...');
+        try {
+          const turnOffResult = await wrapper.setTapoTurnOff(email, password, ipAddress);
+          if (turnOffResult.result) {
+            console.log('✅ Device turned OFF successfully');
+          } else {
+            console.log('❌ Failed to turn device OFF:', turnOffResult.errorInf?.message);
+          }
+        } catch (error: unknown) {
+          console.log('❌ Exception while turning device OFF:', error);
+        }
+
+        console.log('Waiting 2 seconds...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
     }
 
