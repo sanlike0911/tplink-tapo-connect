@@ -55,7 +55,7 @@ async function main(): Promise<void> {
       }
     }
 
-    // Test rapid on/off operations like Python tapo example (tapo_p110.py)
+    // Test rapid on/off operations like Python tapo example
     if (true) {
       for (let i = 0; i < 1; i++) {
         console.log(`\n--- Testing Rapid On/Off Operations (Python-style) - Cycle ${i + 1}/2 ---`);

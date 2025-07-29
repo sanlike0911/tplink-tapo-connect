@@ -5,14 +5,9 @@ import { TapoRetryHandler } from '../utils/retry-utils';
 import { GenericDeviceInfoRetriever } from '../devices/generic-device-info';
 
 
-// Import energy monitoring models from plugs types to avoid duplication
-import { energyMonitoringModels } from '../types/plugs';
+// Import energy monitoring models and device type from plugs types to avoid duplication
+import { energyMonitoringModels, TapoDeviceType, supportsBrightnessControl, supportsColorControl } from '../types/plugs';
 
-/**
- * Supported Tapo device types for internal use
- * Used by the device factory for automatic device type detection and instantiation
- */
-export type TapoDeviceType = 'P100' | 'P105' | 'P110' | 'P110M' | 'P115' | 'L510' | 'L520' | 'L530' | 'UNKNOWN';
 
 
 /**
@@ -342,7 +337,8 @@ export class tplinkTapoConnectWrapper {
 
                 // Check if device supports energy monitoring and add energy usage data
                 let _tapoEnergyUsage: any = undefined;
-                if (energyMonitoringModels.includes(_tapoDeviceInfo.model)) {
+                const deviceType = DeviceFactory.inferDeviceTypeFromInfo(_tapoDeviceInfo);
+                if (energyMonitoringModels.includes(deviceType)) {
                     try {
                         const device = await DeviceFactory.createDevice(_targetIp, credentials, 'getEnergyUsage');
                         await device.connect();
@@ -408,11 +404,12 @@ export class tplinkTapoConnectWrapper {
                 const deviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
 
                 // Check if device supports energy monitoring
-                if (!energyMonitoringModels.includes(deviceInfo.model)) {
+                const deviceType = DeviceFactory.inferDeviceTypeFromInfo(deviceInfo);
+                if (!energyMonitoringModels.includes(deviceType)) {
                     return {
                         result: false,
                         tapoDeviceInfo: deviceInfo,  // Include basic device info even for unsupported devices
-                        errorInf: new Error(`Device model ${deviceInfo.model} does not support energy monitoring. Supported models: ${energyMonitoringModels.join(', ')}`)
+                        errorInf: new Error(`Device type ${deviceType} does not support energy monitoring. Supported models: ${energyMonitoringModels.join(', ')}`)
                     };
                 }
 
@@ -635,9 +632,13 @@ export class tplinkTapoConnectWrapper {
 
                 // Device is connected
 
+                // Get device type and check capability
+                const deviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
+                const deviceType = DeviceFactory.inferDeviceTypeFromInfo(deviceInfo);
+
                 // Check if device supports brightness control
-                if (typeof device.setBrightness !== 'function') {
-                    throw new Error(`Device at ${_targetIp} does not support brightness control. This feature is only available for bulb devices (L510, L520, L530).`);
+                if (!supportsBrightnessControl(deviceType)) {
+                    throw new Error(`Device type ${deviceType} at ${_targetIp} does not support brightness control. This feature is only available for bulb devices.`);
                 }
 
                 // Set brightness
@@ -709,9 +710,13 @@ export class tplinkTapoConnectWrapper {
 
                 // Device is connected
 
+                // Get device type and check capability
+                const deviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
+                const deviceType = DeviceFactory.inferDeviceTypeFromInfo(deviceInfo);
+
                 // Check if device supports color control
-                if (typeof device.setNamedColor !== 'function') {
-                    throw new Error(`Device at ${_targetIp} does not support color control. This feature is only available for color bulb devices (L530).`);
+                if (!supportsColorControl(deviceType)) {
+                    throw new Error(`Device type ${deviceType} at ${_targetIp} does not support color control. This feature is only available for color bulb devices.`);
                 }
 
                 // Set named color
