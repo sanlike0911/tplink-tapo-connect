@@ -12,6 +12,113 @@ import { supportsBrightnessControl, supportsColorControl } from '../types/bulb';
  * Encapsulates device interaction logic with proper error handling and resource management
  */
 export class DeviceControlService {
+    /** Device instance cache for session continuity */
+    private static deviceCache: Map<string, { device: any; lastUsed: number; credentials: TapoCredentials }> = new Map();
+    /** Cache TTL in milliseconds (5 minutes) */
+    private static readonly DEVICE_CACHE_TTL = 300000;
+    /** Cleanup interval for cached devices */
+    private static cleanupInterval: NodeJS.Timeout | null = null;
+
+    /**
+     * Get or create a cached device instance for session continuity
+     */
+    private static async getOrCreateDevice(targetIp: string, credentials: TapoCredentials, methodHint?: string): Promise<any> {
+        const cacheKey = `${targetIp}-${credentials.username}`;
+        const now = Date.now();
+
+        // Start cleanup timer if not already running
+        if (!this.cleanupInterval) {
+            this.startCleanupTimer();
+        }
+
+        // Check if we have a valid cached device
+        const cached = this.deviceCache.get(cacheKey);
+        if (cached && (now - cached.lastUsed) < this.DEVICE_CACHE_TTL) {
+            // Update last used time
+            cached.lastUsed = now;
+            
+            // Verify device is still connected
+            try {
+                if (cached.device.isConnected && cached.device.isConnected()) {
+                    console.log(`Using cached device for ${targetIp}`);
+                    return cached.device;
+                }
+            } catch (error) {
+                console.log(`Cached device connection invalid, creating new one: ${error}`);
+            }
+        }
+
+        // Create new device instance
+        console.log(`Creating new device instance for ${targetIp}`);
+        const device = await DeviceFactory.createDevice(targetIp, credentials, methodHint);
+        await device.connect();
+
+        // Cache the device
+        this.deviceCache.set(cacheKey, {
+            device: device,
+            lastUsed: now,
+            credentials: credentials
+        });
+
+        return device;
+    }
+
+    /**
+     * Start cleanup timer for expired cached devices
+     */
+    private static startCleanupTimer(): void {
+        this.cleanupInterval = setInterval(() => {
+            this.cleanupExpiredDevices();
+        }, 60000); // Check every minute
+    }
+
+    /**
+     * Clean up expired cached devices
+     */
+    private static cleanupExpiredDevices(): void {
+        const now = Date.now();
+        const expiredKeys: string[] = [];
+
+        for (const [key, cached] of this.deviceCache.entries()) {
+            if ((now - cached.lastUsed) >= this.DEVICE_CACHE_TTL) {
+                expiredKeys.push(key);
+                
+                // Safely disconnect the device
+                this.safeDisconnect(cached.device).catch(() => {
+                    // Ignore disconnect errors during cleanup
+                });
+            }
+        }
+
+        // Remove expired entries
+        for (const key of expiredKeys) {
+            this.deviceCache.delete(key);
+            console.log(`Cleaned up expired device cache for ${key}`);
+        }
+
+        // Stop cleanup timer if no cached devices remain
+        if (this.deviceCache.size === 0 && this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+    }
+
+    /**
+     * Clear all cached devices (useful for testing or cleanup)
+     */
+    static clearDeviceCache(): void {
+        for (const [_, cached] of this.deviceCache.entries()) {
+            this.safeDisconnect(cached.device).catch(() => {
+                // Ignore disconnect errors during cleanup
+            });
+        }
+        this.deviceCache.clear();
+        
+        if (this.cleanupInterval) {
+            clearInterval(this.cleanupInterval);
+            this.cleanupInterval = null;
+        }
+    }
 
     /**
      * Get device information including energy usage data for supported devices
@@ -154,11 +261,9 @@ export class DeviceControlService {
         const retryConfig = createRetryConfig('deviceControl', retryOptions);
 
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
-            let device = null;
             try {
                 const credentials: TapoCredentials = { username: email, password: password };
-                device = await DeviceFactory.createDevice(targetIp, credentials, 'turnOn');
-                await device.connect();
+                const device = await this.getOrCreateDevice(targetIp, credentials, 'turnOn');
 
                 await device.turnOn();
                 const tapoDeviceInfo = await DeviceFactory.getDeviceInfo(targetIp, credentials);
@@ -166,8 +271,6 @@ export class DeviceControlService {
                 return { result: true, tapoDeviceInfo: tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
-            } finally {
-                await this.safeDisconnect(device);
             }
         };
 
@@ -186,11 +289,9 @@ export class DeviceControlService {
         const retryConfig = createRetryConfig('deviceControl', retryOptions);
 
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
-            let device = null;
             try {
                 const credentials: TapoCredentials = { username: email, password: password };
-                device = await DeviceFactory.createDevice(targetIp, credentials, 'turnOff');
-                await device.connect();
+                const device = await this.getOrCreateDevice(targetIp, credentials, 'turnOff');
 
                 await device.turnOff();
                 const tapoDeviceInfo = await DeviceFactory.getDeviceInfo(targetIp, credentials);
@@ -198,8 +299,6 @@ export class DeviceControlService {
                 return { result: true, tapoDeviceInfo: tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
-            } finally {
-                await this.safeDisconnect(device);
             }
         };
 
@@ -219,16 +318,13 @@ export class DeviceControlService {
         const retryConfig = createRetryConfig('deviceControl', retryOptions);
 
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
-            let device = null;
             try {
                 if (brightness < 1 || brightness > 100) {
                     throw new Error("Brightness must be between 1-100");
                 }
 
                 const credentials: TapoCredentials = { username: email, password: password };
-                device = await DeviceFactory.createDevice(targetIp, credentials, 'setBrightness');
-                await device.connect();
-
+                
                 // Get device type and check capability
                 const deviceInfo = await DeviceFactory.getDeviceInfo(targetIp, credentials);
                 const deviceType = inferTapoDeviceType(deviceInfo);
@@ -241,14 +337,13 @@ export class DeviceControlService {
                     throw new Error(`Device type ${deviceType} at ${targetIp} does not support brightness control. This feature is only available for bulb devices.`);
                 }
 
+                const device = await this.getOrCreateDevice(targetIp, credentials, 'setBrightness');
                 await device.setBrightness(brightness);
                 const tapoDeviceInfo = await DeviceFactory.getDeviceInfo(targetIp, credentials);
 
                 return { result: true, tapoDeviceInfo: tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
-            } finally {
-                await this.safeDisconnect(device);
             }
         };
 
@@ -268,16 +363,13 @@ export class DeviceControlService {
         const retryConfig = createRetryConfig('deviceControl', retryOptions);
 
         const operation = async (): Promise<tplinkTapoConnectWrapperType.tapoConnectResults> => {
-            let device = null;
             try {
                 if (colour === "") {
                     throw new Error("Color value cannot be empty");
                 }
 
                 const credentials: TapoCredentials = { username: email, password: password };
-                device = await DeviceFactory.createDevice(targetIp, credentials, 'setColor');
-                await device.connect();
-
+                
                 // Get device type and check capability
                 const deviceInfo = await DeviceFactory.getDeviceInfo(targetIp, credentials);
                 const deviceType = inferTapoDeviceType(deviceInfo);
@@ -290,14 +382,13 @@ export class DeviceControlService {
                     throw new Error(`Device type ${deviceType} at ${targetIp} does not support color control. This feature is only available for color bulb devices.`);
                 }
 
+                const device = await this.getOrCreateDevice(targetIp, credentials, 'setColor');
                 await device.setNamedColor(colour);
                 const tapoDeviceInfo = await DeviceFactory.getDeviceInfo(targetIp, credentials);
 
                 return { result: true, tapoDeviceInfo: tapoDeviceInfo };
             } catch (error: any) {
                 throw error;
-            } finally {
-                await this.safeDisconnect(device);
             }
         };
 

@@ -30,6 +30,10 @@ export class DeviceController {
 
         const response = await this.sendRequest(request);
         
+        if (!response) {
+            throw new Error('Failed to turn on device: No response received');
+        }
+        
         if (response.error_code !== 0) {
             throw new Error(`Failed to turn on device: ${response.error_code}`);
         }
@@ -48,6 +52,10 @@ export class DeviceController {
 
         const response = await this.sendRequest(request);
         
+        if (!response) {
+            throw new Error('Failed to turn off device: No response received');
+        }
+        
         if (response.error_code !== 0) {
             throw new Error(`Failed to turn off device: ${response.error_code}`);
         }
@@ -63,6 +71,10 @@ export class DeviceController {
         };
 
         const response = await this.sendRequest(request);
+        
+        if (!response) {
+            throw new Error('Failed to get device info: No response received');
+        }
         
         if (response.error_code !== 0) {
             throw new Error(`Failed to get device info: ${response.error_code}`);
@@ -81,6 +93,10 @@ export class DeviceController {
         };
 
         const response = await this.sendRequest(request);
+        
+        if (!response) {
+            throw new Error('Failed to get device usage: No response received');
+        }
         
         if (response.error_code !== 0) {
             throw new Error(`Failed to get device usage: ${response.error_code}`);
@@ -106,6 +122,10 @@ export class DeviceController {
 
         const response = await this.sendRequest(request);
         
+        if (!response) {
+            throw new Error('Failed to set alias: No response received');
+        }
+        
         if (response.error_code !== 0) {
             throw new Error(`Failed to set alias: ${response.error_code}`);
         }
@@ -122,6 +142,10 @@ export class DeviceController {
 
         const response = await this.sendRequest(request);
         
+        if (!response) {
+            throw new Error('Failed to reset device: No response received');
+        }
+        
         if (response.error_code !== 0) {
             throw new Error(`Failed to reset device: ${response.error_code}`);
         }
@@ -137,6 +161,10 @@ export class DeviceController {
         };
 
         const response = await this.sendRequest(request);
+        
+        if (!response) {
+            throw new Error('Failed to reboot device: No response received');
+        }
         
         if (response.error_code !== 0) {
             throw new Error(`Failed to reboot device: ${response.error_code}`);
@@ -205,6 +233,10 @@ export class DeviceController {
         };
 
         const response = await this.sendRequest(request);
+        
+        if (!response) {
+            throw new Error('Failed to set location: No response received');
+        }
         
         if (response.error_code !== 0) {
             throw new Error(`Failed to set location: ${response.error_code}`);

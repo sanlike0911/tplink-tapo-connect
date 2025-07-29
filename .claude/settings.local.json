@@ -10,7 +10,8 @@
       "Bash(mv:*)",
       "Bash(grep:*)",
       "Bash(find:*)",
-      "Bash(npm run:*)"
+      "Bash(npm run:*)",
+      "Bash(rg:*)"
     ],
     "deny": []
   }

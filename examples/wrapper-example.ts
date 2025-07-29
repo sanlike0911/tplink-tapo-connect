@@ -16,7 +16,7 @@ async function main(): Promise<void> {
     console.log('Plug IP:', ipAddress);
 
     // Test device info retrieval
-    if (true) {
+    if (false) {
       console.log('\n--- Getting Device Info ---');
       console.log('Note: getTapoDeviceInfo() now includes energy usage data for supported devices');
       try {
@@ -56,7 +56,7 @@ async function main(): Promise<void> {
     }
 
     // Test energy usage with device detection and validation
-    if (true) {
+    if (false) {
       console.log('\n--- Testing Energy Usage ---');
       const energyResult = await wrapper.getTapoEnergyUsage(email, password, ipAddress);
       if (energyResult.result) {
@@ -97,7 +97,7 @@ async function main(): Promise<void> {
 
     // Test rapid on/off operations like Python tapo example
     if (true) {
-      for (let i = 0; i < 2; i++) {
+      for (let i = 0; i < 1; i++) {
         console.log(`\n--- Testing Rapid On/Off Operations (Python-style) - Cycle ${i + 1}/2 ---`);
 
         // Turn device ON with error handling

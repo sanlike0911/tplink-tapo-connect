@@ -45,6 +45,9 @@ export class PlugDevice extends BaseDevice {
 
         await this.klapAuth.authenticate();
         
+        // Add small delay after authentication to prevent immediate -1012 errors
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
         // Configure request executor to use KLAP auth
         this.setRequestExecutor(async (request) => {
             if (!this.klapAuth) {
@@ -106,6 +109,10 @@ export class PlugDevice extends BaseDevice {
                 params: {}
             });
 
+            if (!response) {
+                throw new Error('Failed to get child devices: empty response');
+            }
+            
             if (response.error_code !== 0) {
                 throw new Error(`Failed to get child devices: ${response.error_code}`);
             }
@@ -133,6 +140,10 @@ export class PlugDevice extends BaseDevice {
             }
         });
 
+        if (!response) {
+            throw new Error('Failed to control child device: empty response');
+        }
+        
         if (response.error_code !== 0) {
             throw new Error(`Failed to control child device: ${response.error_code}`);
         }

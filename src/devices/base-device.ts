@@ -93,6 +93,7 @@ export abstract class BaseDevice {
         this.isInitialized = false;
     }
 
+
     /**
      * Send request through the request manager
      */

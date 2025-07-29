@@ -46,6 +46,8 @@ export class tplinkTapoConnectWrapper {
     public clearCache(): void {
         // Clear the device info cache
         DeviceFactory.clearDeviceInfoCache();
+        // Clear the device control service cache for session continuity
+        DeviceControlService.clearDeviceCache();
     }
 
     /**

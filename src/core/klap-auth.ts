@@ -154,9 +154,23 @@ export class KlapAuth {
       }
     });
     
-    const decryptedResponse = this.decrypt(response.data);
+    let decryptedResponse;
+    try {
+      decryptedResponse = this.decrypt(response.data);
+    } catch (decryptError) {
+      throw new Error(`Failed to decrypt KLAP response: ${decryptError instanceof Error ? decryptError.message : decryptError}`);
+    }
     
-    if (decryptedResponse.error_code !== 0) {
+    if (!decryptedResponse) {
+      throw new Error('Failed to decrypt response or received empty response');
+    }
+    
+    // Check if decryptedResponse has error_code property before accessing it
+    if (typeof decryptedResponse !== 'object' || decryptedResponse === null) {
+      throw new Error('Invalid response format - expected object but received: ' + typeof decryptedResponse);
+    }
+    
+    if (decryptedResponse.error_code !== undefined && decryptedResponse.error_code !== 0) {
       // Handle specific KLAP error codes
       if (decryptedResponse.error_code === -1012) {
         throw new Error(`Device busy or command timing issue (KLAP -1012). This may be due to rapid successive commands or device state conflicts.`);
@@ -169,6 +183,12 @@ export class KlapAuth {
       } else {
         throw new Error(`KLAP request failed: ${decryptedResponse.error_code}`);
       }
+    }
+    
+    // For successful responses, return the entire response if result is undefined
+    // This commonly happens with control commands like set_device_info
+    if (decryptedResponse.result === undefined) {
+      return decryptedResponse;
     }
     
     return decryptedResponse.result;

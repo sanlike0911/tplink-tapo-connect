@@ -53,6 +53,10 @@ export class LightingController {
 
         const response = await this.sendRequest(request);
         
+        if (!response) {
+            throw new Error('Failed to set brightness: No response received');
+        }
+        
         if (response.error_code !== 0) {
             throw new Error(`Failed to set brightness: ${response.error_code}`);
         }
@@ -87,6 +91,10 @@ export class LightingController {
         };
 
         const response = await this.sendRequest(request);
+        
+        if (!response) {
+            throw new Error('Failed to set color: No response received');
+        }
         
         if (response.error_code !== 0) {
             throw new Error(`Failed to set color: ${response.error_code}`);
@@ -142,6 +150,10 @@ export class LightingController {
 
         const response = await this.sendRequest(request);
         
+        if (!response) {
+            throw new Error('Failed to set color temperature: No response received');
+        }
+        
         if (response.error_code !== 0) {
             throw new Error(`Failed to set color temperature: ${response.error_code}`);
         }
@@ -158,6 +170,10 @@ export class LightingController {
 
         const response = await this.sendRequest(request);
         
+        if (!response) {
+            throw new Error('Failed to set light effect: No response received');
+        }
+        
         if (response.error_code !== 0) {
             throw new Error(`Failed to set light effect: ${response.error_code}`);
         }
@@ -173,6 +189,10 @@ export class LightingController {
         };
 
         const response = await this.sendRequest(request);
+        
+        if (!response) {
+            throw new Error('Failed to get lighting state: No response received');
+        }
         
         if (response.error_code !== 0) {
             throw new Error(`Failed to get lighting state: ${response.error_code}`);
