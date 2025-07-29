@@ -3,6 +3,7 @@ import { TapoDeviceInfo as P105DeviceInfo } from '../types';
 import { RetryOptions, createRetryConfig } from '../types/retry-options';
 import { TapoRetryHandler } from '../utils/retry-utils';
 import { GenericDeviceInfoRetriever } from '../devices/generic-device-info';
+import { inferTapoDeviceType } from '../types/device-common';
 
 
 // Import energy monitoring models and device type from plugs types to avoid duplication
@@ -59,35 +60,7 @@ class DeviceFactory {
         }
     }
 
-    /**
-     * Infer device type from device information
-     * @param deviceInfo Device information obtained from the device
-     * @returns Inferred device type
-     */
-    static inferDeviceTypeFromInfo(deviceInfo: P105DeviceInfo): TapoDeviceType {
-        const model = deviceInfo.model;
-        const deviceType = deviceInfo.type;
-
-        switch (deviceType) {
-            case 'SMART.TAPOPLUG':
-                if (model.startsWith('P100')) return 'P100';
-                if (model.startsWith('P105')) return 'P105';
-                if (model.startsWith('P110')) return 'P110';
-                if (model.startsWith('P110M')) return 'P110M';
-                if (model.startsWith('P115')) return 'P115';
-                break;
-            case "SMART.TAPOBULB":
-                if (model.startsWith('L510')) return 'L510';
-                if (model.startsWith('L520')) return 'L520';
-                if (model.startsWith('L530')) return 'L530';
-                break;
-            default:
-                return 'UNKNOWN';
-        }
-
-        // Default to P105 for unknown devices
-        return 'UNKNOWN';
-    }
+    
 
     /**
      * Create device instance with automatic device type detection
@@ -101,7 +74,7 @@ class DeviceFactory {
         try {
             // Always get device info first to determine the correct device type
             const deviceInfo = await this.getDeviceInfo(ip, credentials);
-            const actualDeviceType = this.inferDeviceTypeFromInfo(deviceInfo);
+            const actualDeviceType = inferTapoDeviceType(deviceInfo);
 
             return this.createSpecificDevice(actualDeviceType, ip, credentials);
         } catch (error) {
@@ -337,7 +310,7 @@ export class tplinkTapoConnectWrapper {
 
                 // Check if device supports energy monitoring and add energy usage data
                 let _tapoEnergyUsage: any = undefined;
-                const deviceType = DeviceFactory.inferDeviceTypeFromInfo(_tapoDeviceInfo);
+                const deviceType = inferTapoDeviceType(_tapoDeviceInfo);
                 if (energyMonitoringModels.includes(deviceType)) {
                     try {
                         const device = await DeviceFactory.createDevice(_targetIp, credentials, 'getEnergyUsage');
@@ -404,7 +377,7 @@ export class tplinkTapoConnectWrapper {
                 const deviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
 
                 // Check if device supports energy monitoring
-                const deviceType = DeviceFactory.inferDeviceTypeFromInfo(deviceInfo);
+                const deviceType = inferTapoDeviceType(deviceInfo);
                 if (!energyMonitoringModels.includes(deviceType)) {
                     return {
                         result: false,
@@ -634,7 +607,7 @@ export class tplinkTapoConnectWrapper {
 
                 // Get device type and check capability
                 const deviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
-                const deviceType = DeviceFactory.inferDeviceTypeFromInfo(deviceInfo);
+                const deviceType = inferTapoDeviceType(deviceInfo);
 
                 // Check if device supports brightness control
                 if (!supportsBrightnessControl(deviceType)) {
@@ -712,7 +685,7 @@ export class tplinkTapoConnectWrapper {
 
                 // Get device type and check capability
                 const deviceInfo = await DeviceFactory.getDeviceInfo(_targetIp, credentials);
-                const deviceType = DeviceFactory.inferDeviceTypeFromInfo(deviceInfo);
+                const deviceType = inferTapoDeviceType(deviceInfo);
 
                 // Check if device supports color control
                 if (!supportsColorControl(deviceType)) {

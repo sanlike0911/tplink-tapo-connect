@@ -4,6 +4,7 @@
  */
 
 import { TapoDeviceInfo } from './base';
+import { TapoDeviceType } from './plugs';
 
 /**
  * Standard device operation options
@@ -230,4 +231,36 @@ export interface DeviceConfiguration {
     enableEvents?: boolean;
     logLevel?: 'debug' | 'info' | 'warn' | 'error';
   };
+}
+
+/**
+ * Device model to TapoDeviceType mapping
+ * This allows for dynamic device type resolution based on the model string
+ */
+const DEVICE_MODEL_MAP: { [key: string]: TapoDeviceType } = {
+    'P100': 'P100',
+    'P105': 'P105',
+    'P110': 'P110',
+    'P110M': 'P110', // P110M uses the P110 implementation
+    'P115': 'P115',
+    'L510': 'L510',
+    'L520': 'L520',
+    'L530': 'L530',
+};
+
+/**
+ * Infer TapoDeviceType from device information using a model map
+ * @param deviceInfo Device information obtained from the device
+ * @returns Inferred TapoDeviceType
+ */
+export function inferTapoDeviceType(deviceInfo: TapoDeviceInfo): TapoDeviceType {
+    const model = deviceInfo.model.toUpperCase();
+
+    for (const modelPrefix in DEVICE_MODEL_MAP) {
+        if (model.startsWith(modelPrefix)) {
+            return DEVICE_MODEL_MAP[modelPrefix];
+        }
+    }
+
+    return 'UNKNOWN';
 }
