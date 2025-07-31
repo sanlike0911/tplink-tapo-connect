@@ -6,9 +6,14 @@ module.exports = {
     '**/__tests__/**/*.+(ts|tsx|js)',
     '**/*.(test|spec).+(ts|tsx|js)'
   ],
+  testPathIgnorePatterns: [
+    '<rootDir>/tests/integration/',
+    '<rootDir>/tests/e2e/'
+  ],
   transform: {
     '^.+\\.(ts|tsx)$': 'ts-jest',
   },
+  setupFilesAfterEnv: ['<rootDir>/tests/setup.ts'],
   collectCoverageFrom: [
     'src/**/*.(ts|js)',
     '!src/**/*.d.ts',
