@@ -7,7 +7,6 @@ module.exports = {
     '**/*.(test|spec).+(ts|tsx|js)'
   ],
   testPathIgnorePatterns: [
-    '<rootDir>/tests/integration/',
     '<rootDir>/tests/e2e/'
   ],
   transform: {
