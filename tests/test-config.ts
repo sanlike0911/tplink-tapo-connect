@@ -4,11 +4,13 @@ export const TEST_CONFIG = {
   
   // テスト用デバイス情報
   TEST_DEVICES: {
-    P100: { ip: '192.168.1.100', alias: 'test-plug-p100' },
-    P105: { ip: '192.168.1.101', alias: 'test-plug-p105' },
-    P110: { ip: '192.168.1.102', alias: 'test-plug-p110' },
-    L510: { ip: '192.168.1.103', alias: 'test-bulb-l510' },
-    L530: { ip: '192.168.1.104', alias: 'test-bulb-l530' }
+    P100: { ip: process.env['P100_PLUG_IP'] || '192.168.1.100', alias: 'test-plug-p100' },
+    P105: { ip: process.env['P105_PLUG_IP'] || '192.168.1.101', alias: 'test-plug-p105' },
+    P110: { ip: process.env['P110_PLUG_IP'] || '192.168.1.102', alias: 'test-plug-p110' },
+    P115: { ip: process.env['P115_PLUG_IP'] || '192.168.1.103', alias: 'test-plug-p115' },
+    L510: { ip: process.env['L510_BULB_IP'] || '192.168.1.110', alias: 'test-bulb-l510' },
+    L520: { ip: process.env['L520_BULB_IP'] || '192.168.1.120', alias: 'test-bulb-l520' },
+    L530: { ip: process.env['L530_BULB_IP'] || '192.168.1.130', alias: 'test-bulb-l530' }
   },
   
   // タイムアウト設定

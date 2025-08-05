@@ -381,7 +381,7 @@ async function testAllPlugs(): Promise<void> {
  * Test specific plug models based on environment variable
  */
 async function testSpecificPlugs(): Promise<void> {
-  const testModels = process.env.TEST_PLUG_MODELS;
+  const testModels = process.env.TEST_DEVICE_MODELS || process.env.TEST_PLUG_MODELS; // Backward compatibility
   
   if (!testModels) {
     await testAllPlugs();
@@ -395,6 +395,7 @@ async function testSpecificPlugs(): Promise<void> {
   
   if (validConfigs.length === 0) {
     console.error(`❌ No valid plug models found. Available models: ${PLUG_CONFIGS.map(c => c.model).join(', ')}`);
+    console.log(`🔍 Requested models: ${modelsToTest.join(', ')}`);
     return;
   }
   
@@ -423,7 +424,7 @@ async function main(): Promise<void> {
       console.log(`export ${config.ipEnvVar}="${config.defaultIp}"`);
     });
     console.log('\nOptional model selection:');
-    console.log('export TEST_PLUG_MODELS="P100,P110"  # Test only specific models');
+    console.log('export TEST_DEVICE_MODELS="P100,P110"  # Test only specific models');
     process.exit(1);
   }
   
@@ -449,8 +450,8 @@ if (args.includes('--help') || args.includes('-h')) {
   console.log('\nEnvironment Variables:');
   console.log('  TAPO_USERNAME     - Your Tapo account username (required)');
   console.log('  TAPO_PASSWORD     - Your Tapo account password (required)');
-  console.log('  TEST_PLUG_MODELS  - Comma-separated models to test (optional)');
-  console.log('                      Example: "P100,P110"');
+  console.log('  TEST_DEVICE_MODELS - Comma-separated models to test (optional)');
+  console.log('                       Example: "P100,P110"');
   console.log('\n  Device IP addresses (optional):');
   PLUG_CONFIGS.forEach(config => {
     console.log(`    ${config.ipEnvVar.padEnd(15)} - ${config.model} IP address (default: ${config.defaultIp})`);
