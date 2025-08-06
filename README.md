@@ -13,29 +13,39 @@ TypeScript/Node.js library for controlling TP-Link Tapo smart devices locally. T
 
 ## Supported Devices
 
-| Device Model | Type | Energy Monitoring | Status |
-|--------------|------|------------------|--------|
-| P100 | Smart Plug | ❌ | ✅ Supported |
-| P105 | Smart Plug | ❌ | ✅ Supported |
-| P110 | Smart Plug with Energy Monitoring | ✅ | ✅ Supported |
-| P115 | Smart Plug with Energy Monitoring | ✅ | ✅ Supported |
-| L510 | Smart Bulb (Dimmable) | ❌ | ✅ Supported |
-| L520 | Smart Bulb (Dimmable) | ❌ | ✅ Supported |
-| L530 | Smart Bulb (Color) | ❌ | ✅ Supported |
+| Device Model | Type | Energy Monitoring | Color Support | Status |
+|--------------|------|------------------|---------------|--------|
+| P100 | Smart Plug | ❌ | ❌ | ✅ Supported |
+| P105 | Smart Plug | ❌ | ❌ | ✅ Supported |
+| P110 | Smart Plug with Energy Monitoring | ✅ | ❌ | ✅ Supported |
+| P115 | Smart Plug with Energy Monitoring | ✅ | ❌ | ✅ Supported |
+| P300 | Multi-Socket Power Strip | ❌ | ❌ | 🚧 Planned |
+| P304 | Multi-Socket Power Strip | ❌ | ❌ | 🚧 Planned |
+| L510 | Smart Bulb (Dimmable White) | ❌ | ❌ | ✅ Supported |
+| L520 | Smart Bulb (Tunable White) | ❌ | 🔶 Color Temperature | ✅ Supported |
+| L530 | Smart Bulb (Color) | ❌ | ✅ Full Color | ✅ Supported |
+| L535 | Smart Bulb (Color) | ❌ | ✅ Full Color | 🚧 Planned |
+| L610 | Smart Bulb (Dimmable White) | ❌ | ❌ | 🚧 Planned |
+| L630 | Smart Bulb (Color) | ❌ | ✅ Full Color | 🚧 Planned |
+| L900 | Light Strip | ❌ | ✅ Full Color | 🚧 Planned |
+| L920 | Light Strip with Effects | ❌ | ✅ Full Color + Effects | 🚧 Planned |
+| L930 | Light Strip with Effects | ❌ | ✅ Full Color + Effects | 🚧 Planned |
 
 ### Supported Features by Device
 
-| Feature | P100/P105 | P110/P115 | L510/L520 | L530 |
-|---------|-----------|-----------|-----------|------|
-| Device Info | ✅ | ✅ | ✅ | ✅ |
-| Power On/Off | ✅ | ✅ | ✅ | ✅ |
-| Device Usage | ✅ | ✅ | ✅ | ✅ |
-| Current Power | ❌ | ✅ | ❌ | ❌ |
-| Energy Data | ❌ | ✅ | ❌ | ❌ |
-| Energy Usage | ❌ | ✅ | ❌ | ❌ |
-| Brightness Control | ❌ | ❌ | ✅ | ✅ |
-| Color Control | ❌ | ❌ | ❌ | ✅ |
-| Color Temperature | ❌ | ❌ | ❌ | ✅ |
+| Feature | P100/P105 | P110/P115 | L510 | L520 | L530 |
+|---------|-----------|-----------|------|------|------|
+| Device Info | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Power On/Off | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Device Usage | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Current Power | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Energy Data | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Energy Usage | ❌ | ✅ | ❌ | ❌ | ❌ |
+| Brightness Control | ❌ | ❌ | ✅ | ✅ | ✅ |
+| Color Control | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Color Temperature | ❌ | ❌ | ❌ | ✅ | ✅ |
+| HSV Color Control | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Lighting Effects | ❌ | ❌ | ❌ | ❌ | 🚧 Planned |
 
 ## Installation
 
@@ -56,14 +66,14 @@ const credentials: TapoCredentials = {
 };
 
 // Create P100 plug instance
-const plug = TapoConnect.createP100Plug('192.168.1.100', credentials);
+const plug = await TapoConnect.createP100Plug('192.168.1.100', credentials);
 
 // Connect and control
 await plug.connect();
 
 // Basic operations
-await plug.on();           // Turn on
-await plug.off();          // Turn off
+await plug.turnOn();       // Turn on
+await plug.turnOff();      // Turn off
 await plug.toggle();       // Toggle state
 
 // Get device information
@@ -83,12 +93,12 @@ await plug.disconnect();
 import { TapoConnect } from 'tplink-tapo-connect';
 
 // Create P110 plug instance with energy monitoring
-const plug = TapoConnect.createP110Plug('192.168.1.110', credentials);
+const plug = await TapoConnect.createP110Plug('192.168.1.110', credentials);
 
 await plug.connect();
 
 // Basic control (same as P100/P105)
-await plug.on();
+await plug.turnOn();
 
 // Energy monitoring features
 const currentPower = await plug.getCurrentPower();  // Current power in watts
@@ -113,10 +123,10 @@ await plug.disconnect();
 ```typescript
 import { tplinkTapoConnectWrapper, RetryOptions } from 'tplink-tapo-connect';
 
-const wrapper = new tplinkTapoConnectWrapper();
+const wrapper = tplinkTapoConnectWrapper.getInstance();
 
 // Basic operation without retry (fast but less reliable)
-await wrapper.turnOn(email, password, ip);
+await wrapper.setTapoTurnOn(email, password, ip);
 
 // Operation with retry for reliability
 const retryOptions: RetryOptions = {
@@ -125,17 +135,17 @@ const retryOptions: RetryOptions = {
   strategy: 'exponential'
 };
 
-const result = await wrapper.turnOn(email, password, ip, retryOptions);
+const result = await wrapper.setTapoTurnOn(email, password, ip, retryOptions);
 console.log('Operation completed successfully');
 
 // Batch operations with retry
 const batchResults = await wrapper.executeBatch([
   {
-    operation: () => wrapper.getDeviceInfo(email, password, ip, retryOptions),
+    operation: () => wrapper.getTapoDeviceInfo(email, password, ip, retryOptions),
     name: 'Get Device Info'
   },
   {
-    operation: () => wrapper.turnOn(email, password, ip, retryOptions),
+    operation: () => wrapper.setTapoTurnOn(email, password, ip, retryOptions),
     name: 'Turn On Device'
   }
 ]);
@@ -146,7 +156,7 @@ const batchResults = await wrapper.executeBatch([
 ```typescript
 import { tplinkTapoConnectWrapper, RetryOptions } from 'tplink-tapo-connect';
 
-const wrapper = new tplinkTapoConnectWrapper();
+const wrapper = tplinkTapoConnectWrapper.getInstance();
 
 // Custom retry configuration for different scenarios
 const aggressiveRetry: RetryOptions = {
@@ -172,8 +182,8 @@ const energyMonitoringRetry: RetryOptions = {
 };
 
 // Apply retry options to operations
-await wrapper.turnOn(email, password, ip, deviceControlRetry);
-const energyData = await wrapper.getEnergyUsage(email, password, ip, energyMonitoringRetry);
+await wrapper.setTapoTurnOn(email, password, ip, deviceControlRetry);
+const energyData = await wrapper.getTapoEnergyUsage(email, password, ip, energyMonitoringRetry);
 ```
 
 ### Batch Operations with Smart Delays
@@ -181,7 +191,7 @@ const energyData = await wrapper.getEnergyUsage(email, password, ip, energyMonit
 ```typescript
 import { tplinkTapoConnectWrapper, BatchOperation, RetryOptions } from 'tplink-tapo-connect';
 
-const wrapper = new tplinkTapoConnectWrapper();
+const wrapper = tplinkTapoConnectWrapper.getInstance();
 const retryOptions: RetryOptions = {
   maxAttempts: 3,
   baseDelay: 1000,
@@ -190,17 +200,17 @@ const retryOptions: RetryOptions = {
 
 const operations: BatchOperation[] = [
   {
-    operation: () => wrapper.getDeviceInfo(email, password, ip, retryOptions),
+    operation: () => wrapper.getTapoDeviceInfo(email, password, ip, retryOptions),
     name: 'Get Status',
     delayAfter: 1000
   },
   {
-    operation: () => wrapper.turnOn(email, password, ip, retryOptions),
+    operation: () => wrapper.setTapoTurnOn(email, password, ip, retryOptions),
     name: 'Turn On',
     delayAfter: 3000  // Longer delay after control commands
   },
   {
-    operation: () => wrapper.turnOff(email, password, ip, retryOptions),
+    operation: () => wrapper.setTapoTurnOff(email, password, ip, retryOptions),
     name: 'Turn Off',
     delayAfter: 0
   }
@@ -215,7 +225,7 @@ console.log(`${results.filter(r => r.success).length}/${results.length} operatio
 ```typescript
 import { tplinkTapoConnectWrapper, RetryOptions } from 'tplink-tapo-connect';
 
-const wrapper = new tplinkTapoConnectWrapper();
+const wrapper = tplinkTapoConnectWrapper.getInstance();
 const retryOptions: RetryOptions = {
   maxAttempts: 3,
   baseDelay: 1000,
@@ -223,27 +233,27 @@ const retryOptions: RetryOptions = {
 };
 
 // ❌ Bad - causes KLAP -1012 errors
-await wrapper.turnOn(email, password, ip);
-await wrapper.turnOff(email, password, ip);  // Will likely fail
+await wrapper.setTapoTurnOn(email, password, ip);
+await wrapper.setTapoTurnOff(email, password, ip);  // Will likely fail
 
 // ✅ Good - proper delays prevent errors
-await wrapper.turnOn(email, password, ip);
+await wrapper.setTapoTurnOn(email, password, ip);
 await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds
-await wrapper.turnOff(email, password, ip);
+await wrapper.setTapoTurnOff(email, password, ip);
 
 // ✅ Better - automatic retry handling with integrated retry support
-await wrapper.turnOn(email, password, ip, retryOptions);
-await wrapper.turnOff(email, password, ip, retryOptions); // Handles retries automatically
+await wrapper.setTapoTurnOn(email, password, ip, retryOptions);
+await wrapper.setTapoTurnOff(email, password, ip, retryOptions); // Handles retries automatically
 
 // ✅ Best - use batch operations for multiple commands
 const operations = [
   {
-    operation: () => wrapper.turnOn(email, password, ip, retryOptions),
+    operation: () => wrapper.setTapoTurnOn(email, password, ip, retryOptions),
     name: 'Turn On',
     delayAfter: 3000
   },
   {
-    operation: () => wrapper.turnOff(email, password, ip, retryOptions),
+    operation: () => wrapper.setTapoTurnOff(email, password, ip, retryOptions),
     name: 'Turn Off'
   }
 ];
@@ -282,13 +292,13 @@ if (hasEnergyMonitoring) {
 import { TapoConnect } from 'tplink-tapo-connect';
 
 // Create different device types
-const p100 = TapoConnect.createP100Plug(ip, credentials);  // Basic plug
-const p105 = TapoConnect.createP105Plug(ip, credentials);  // Basic plug
-const p110 = TapoConnect.createP110Plug(ip, credentials);  // Energy monitoring plug
-const p115 = TapoConnect.createP115Plug(ip, credentials);  // Energy monitoring plug
-const l510 = TapoConnect.createL510Bulb(ip, credentials);  // Dimmable bulb
-const l520 = TapoConnect.createL520Bulb(ip, credentials);  // Dimmable bulb
-const l530 = TapoConnect.createL530Bulb(ip, credentials);  // Color bulb
+const p100 = await TapoConnect.createP100Plug(ip, credentials);  // Basic plug
+const p105 = await TapoConnect.createP105Plug(ip, credentials);  // Basic plug
+const p110 = await TapoConnect.createP110Plug(ip, credentials);  // Energy monitoring plug
+const p115 = await TapoConnect.createP115Plug(ip, credentials);  // Energy monitoring plug
+const l510 = await TapoConnect.createL510Bulb(ip, credentials);  // Dimmable bulb
+const l520 = await TapoConnect.createL520Bulb(ip, credentials);  // Dimmable bulb
+const l530 = await TapoConnect.createL530Bulb(ip, credentials);  // Color bulb
 ```
 
 ## API Reference
@@ -327,7 +337,7 @@ const l530 = TapoConnect.createL530Bulb(ip, credentials);  // Color bulb
 
 - `connect()` - Establish connection to device
 - `disconnect()` - Close connection
-- `on()` / `off()` - Power control
+- `turnOn()` / `turnOff()` - Power control
 - `toggle()` - Toggle power state
 - `isOn()` - Check if device is on
 - `getDeviceInfo()` - Get device information
@@ -353,18 +363,12 @@ const l530 = TapoConnect.createL530Bulb(ip, credentials);  // Color bulb
 npm run build
 
 # Run examples
-npm run example:p100    # P100 plug example
-npm run example:p105    # P105 plug example  
-npm run example:p110    # P110 plug example
-npm run example:wrapper # Legacy wrapper example
-npm run example:safe    # Safe operations example
-npm run example:best    # Best practices example (recommended)
+npm run example:plug    # Comprehensive plug example (all models)
+npm run example:bulb    # Smart bulb example
+npm run example:wrapper # Wrapper API example
 
 # Run tests
-npm test                    # All tests
-npm run test:p105          # P105 specific tests
-npm run test:p105:unit     # Unit tests only
-npm run test:p105:integration  # Integration tests
+npm test                # All tests
 
 # Development
 npm run build:watch        # Watch mode build
