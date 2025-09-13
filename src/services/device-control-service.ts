@@ -386,12 +386,16 @@ export class DeviceControlService {
                 
                 // Check if colour is a hex code (starts with # or is 6 hex digits)
                 if (colour.startsWith('#') || /^[0-9A-Fa-f]{6}$/.test(colour)) {
-                    // Convert hex to RGB and use setColorRGB
+                    // Convert hex to RGB, then to HSV and use setColor
                     const hex = colour.replace('#', '');
                     const red = parseInt(hex.substring(0, 2), 16);
                     const green = parseInt(hex.substring(2, 4), 16);
                     const blue = parseInt(hex.substring(4, 6), 16);
-                    await device.setColorRGB({ red, green, blue });
+                    
+                    // Convert RGB to HSV using existing ColorUtils
+                    const { ColorUtils } = await import('../types/bulb');
+                    const hsv = ColorUtils.rgbToHsv({ red, green, blue });
+                    await device.setColor(hsv);
                 } else {
                     // Use named color
                     await device.setNamedColor(colour);
