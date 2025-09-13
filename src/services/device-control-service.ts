@@ -383,7 +383,20 @@ export class DeviceControlService {
                 }
 
                 const device = await this.getOrCreateDevice(targetIp, credentials, 'setColor');
-                await device.setNamedColor(colour);
+                
+                // Check if colour is a hex code (starts with # or is 6 hex digits)
+                if (colour.startsWith('#') || /^[0-9A-Fa-f]{6}$/.test(colour)) {
+                    // Convert hex to RGB and use setColorRGB
+                    const hex = colour.replace('#', '');
+                    const red = parseInt(hex.substring(0, 2), 16);
+                    const green = parseInt(hex.substring(2, 4), 16);
+                    const blue = parseInt(hex.substring(4, 6), 16);
+                    await device.setColorRGB({ red, green, blue });
+                } else {
+                    // Use named color
+                    await device.setNamedColor(colour);
+                }
+                
                 const tapoDeviceInfo = await DeviceFactory.getDeviceInfo(targetIp, credentials);
 
                 return { result: true, tapoDeviceInfo: tapoDeviceInfo };
