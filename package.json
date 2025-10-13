@@ -1,6 +1,6 @@
 {
   "name": "tplink-tapo-connect",
-  "version": "1.0.0",
+  "version": "0.5.9",
   "description": "TypeScript library for TP-Link Tapo smart device control",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -18,16 +18,25 @@
     "clean": "rimraf dist",
     "postinstall": "npm run build"
   },
-  "keywords": [
-    "tplink",
-    "tapo",
-    "smart-home",
-    "iot",
-    "typescript",
-    "nodejs"
-  ],
-  "author": "",
+  "author": "sanlike",
   "license": "MIT",
+  "keywords": [
+    "node-red",
+    "tplink",
+    "IoT",
+    "Smart Plug",
+    "Energy Monitoring",
+    "Smart Bulb",
+    "P100",
+    "P105",
+    "P110",
+    "P115",
+    "TP15(Experimental)",
+    "L510",
+    "L520",
+    "L530",
+    "L535(Experimental)"
+  ],
   "devDependencies": {
     "@types/crypto-js": "^4.2.2",
     "@types/jest": "^29.5.0",
