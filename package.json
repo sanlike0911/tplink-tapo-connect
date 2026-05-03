@@ -57,7 +57,7 @@
     "dotenv": "^17.2.0",
     "local-devices": "^4.0.0",
     "node-red": "^4.1.0",
-    "uuid": "^11.1.0"
+    "uuid": "^14.0.0"
   },
   "engines": {
     "node": ">=16.0.0"
